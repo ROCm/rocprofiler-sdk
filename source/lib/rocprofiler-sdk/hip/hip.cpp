@@ -223,7 +223,6 @@ hip_api_impl<TableIdx, OpIdx>::functor(Args... args)
     }
 
 #if 0
-    // johnmc
     ROCP_FATAL_IF(external_corr_ids.size() < (callback_contexts.size() + buffered_contexts.size()))
         << "missing external correlation ids";
 #endif
