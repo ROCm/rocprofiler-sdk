@@ -46,12 +46,13 @@ namespace ioctl
 rocprofiler_ioctl_version_info_t&
 get_ioctl_version();
 
-// IOCTL 1.17 is the first one supporting PC sampling.
+// Change 1.17 to 1.16 to avoid the need to patch AMD's kernel driver released with AFAR V
+// IOCTL 1.16 is the first one supporting PC sampling.
 #define CHECK_IOCTL_VERSION                                                                        \
     do                                                                                             \
     {                                                                                              \
         auto ioctl_version = get_ioctl_version();                                                  \
-        if(ioctl_version.major_version < 1 || ioctl_version.minor_version < 17)                    \
+        if(ioctl_version.major_version < 1 || ioctl_version.minor_version < 16)                    \
         {                                                                                          \
             LOG(ERROR) << "PC sampling unavailable\n";                                             \
             return ROCPROFILER_STATUS_ERROR_INCOMPATIBLE_KERNEL;                                   \
