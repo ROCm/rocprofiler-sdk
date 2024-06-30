@@ -25,6 +25,7 @@ add_subdirectory(common)
 
 # actual samples
 add_subdirectory(api_callback_tracing)
+add_subdirectory(api_callback_tracing_memcpy_bug)
 add_subdirectory(api_buffered_tracing)
 add_subdirectory(code_object_tracing)
 add_subdirectory(counter_collection)

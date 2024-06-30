@@ -1,0 +1,2 @@
+for an internal correlation id, the external correlation id popped is supposed to be the same as the external correlation id pushed.
+these are not the same for when using callback api tracing for ROCPROFILER_CALLBACK_TRACING_MEMORY_COPY. the value popped is always 0.

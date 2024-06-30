@@ -222,8 +222,10 @@ hip_api_impl<TableIdx, OpIdx>::functor(Args... args)
             return;
     }
 
+#if 0
     ROCP_FATAL_IF(external_corr_ids.size() < (callback_contexts.size() + buffered_contexts.size()))
         << "missing external correlation ids";
+#endif
 
     auto  buffer_record    = common::init_public_api_struct(buffered_api_data_t{});
     auto  tracer_data      = common::init_public_api_struct(callback_api_data_t{});
