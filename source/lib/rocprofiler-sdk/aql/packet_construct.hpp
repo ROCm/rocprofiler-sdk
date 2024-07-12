@@ -36,6 +36,25 @@
 #include "lib/rocprofiler-sdk/hsa/agent_cache.hpp"
 #include "lib/rocprofiler-sdk/hsa/queue.hpp"
 #include "lib/rocprofiler-sdk/thread_trace/att_core.hpp"
+#include "rocprofiler-sdk/fwd.h"
+
+inline bool
+operator==(aqlprofile_pmc_event_t lhs, aqlprofile_pmc_event_t rhs)
+{
+    if(lhs.block_name != rhs.block_name) return false;
+    if(lhs.block_index != rhs.block_index) return false;
+    if(lhs.event_id != rhs.event_id) return false;
+    return lhs.flags.raw == rhs.flags.raw;
+}
+
+inline bool
+operator<(aqlprofile_pmc_event_t lhs, aqlprofile_pmc_event_t rhs)
+{
+    if(lhs.block_name != rhs.block_name) return lhs.block_name < rhs.block_name;
+    if(lhs.block_index != rhs.block_index) return lhs.block_index < rhs.block_index;
+    if(lhs.event_id != rhs.event_id) return lhs.event_id < rhs.event_id;
+    return lhs.flags.raw < rhs.flags.raw;
+}
 
 namespace rocprofiler
 {
@@ -54,13 +73,16 @@ class CounterPacketConstruct
 public:
     CounterPacketConstruct(rocprofiler_agent_id_t               agent,
                            const std::vector<counters::Metric>& metrics);
-    std::unique_ptr<hsa::CounterAQLPacket> construct_packet(const AmdExtTable&);
+    std::unique_ptr<hsa::CounterAQLPacket> construct_packet(const CoreApiTable&,
+                                                            const AmdExtTable&);
 
-    const counters::Metric* event_to_metric(const hsa_ven_amd_aqlprofile_event_t& event) const;
-    std::vector<hsa_ven_amd_aqlprofile_event_t> get_all_events() const;
-    const std::vector<aqlprofile_pmc_event_t>&  get_counter_events(const counters::Metric&) const;
+    const counters::Metric*             event_to_metric(const aqlprofile_pmc_event_t& event) const;
+    std::vector<aqlprofile_pmc_event_t> get_all_events() const;
+    const std::vector<aqlprofile_pmc_event_t>& get_counter_events(const counters::Metric&) const;
 
     rocprofiler_agent_id_t agent() const { return _agent; }
+
+    rocprofiler_status_t can_collect();
 
 private:
     static constexpr size_t MEM_PAGE_ALIGN = 0x1000;
@@ -70,36 +92,38 @@ private:
 protected:
     struct AQLProfileMetric
     {
-        counters::Metric                            metric;
-        std::vector<hsa_ven_amd_aqlprofile_event_t> instances;
-        std::vector<aqlprofile_pmc_event_t>         events;
+        counters::Metric                    metric;
+        std::vector<aqlprofile_pmc_event_t> instances;
+        std::vector<aqlprofile_pmc_event_t> events;
     };
 
-    void can_collect();
-
-    rocprofiler_agent_id_t                      _agent;
-    std::vector<AQLProfileMetric>               _metrics;
-    std::vector<hsa_ven_amd_aqlprofile_event_t> _events;
-    std::map<std::tuple<hsa_ven_amd_aqlprofile_block_name_t, uint32_t, uint32_t>, counters::Metric>
-        _event_to_metric;
+    rocprofiler_agent_id_t                             _agent;
+    std::vector<AQLProfileMetric>                      _metrics;
+    std::vector<aqlprofile_pmc_event_t>                _events;
+    std::map<aqlprofile_pmc_event_t, counters::Metric> _event_to_metric;
 };
 
 class ThreadTraceAQLPacketFactory
 {
+    using thread_trace_parameter_pack = thread_trace::thread_trace_parameter_pack;
+
 public:
     ThreadTraceAQLPacketFactory(const hsa::AgentCache&             agent,
                                 const thread_trace_parameter_pack& params,
                                 const CoreApiTable&                coreapi,
                                 const AmdExtTable&                 ext);
-    std::unique_ptr<hsa::TraceControlAQLPacket>  construct_packet();
+
+    std::unique_ptr<hsa::TraceControlAQLPacket>  construct_control_packet();
     std::unique_ptr<hsa::CodeobjMarkerAQLPacket> construct_load_marker_packet(uint64_t id,
                                                                               uint64_t addr,
                                                                               uint64_t size);
+
     std::unique_ptr<hsa::CodeobjMarkerAQLPacket> construct_unload_marker_packet(uint64_t id);
 
+    std::vector<aqlprofile_att_parameter_t> aql_params;
+
 private:
-    hsa::TraceMemoryPool                            tracepool;
-    std::vector<hsa_ven_amd_aqlprofile_parameter_t> aql_params;
+    hsa::TraceMemoryPool tracepool;
 };
 
 }  // namespace aql

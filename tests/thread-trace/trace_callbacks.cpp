@@ -138,9 +138,9 @@ get_trace_data(rocprofiler_att_parser_data_type_t type, void* att_data, void* us
         auto ptr = std::make_unique<TrackedIsa>();
         try
         {
-            auto shared_inst = codeobjTranslate->get(pc.marker_id, pc.addr);
-            if(shared_inst == nullptr) return;
-            ptr->inst = shared_inst->inst;
+            auto unique_inst = codeobjTranslate->get(pc.marker_id, pc.addr);
+            if(unique_inst == nullptr) return;
+            ptr->inst = unique_inst->inst;
         } catch(...)
         {
             return;
@@ -178,7 +178,7 @@ isa_callback(char*     isa_instruction,
     assert(trace_data.tool && "ISA callback passed null!");
     ToolData& tool = *reinterpret_cast<ToolData*>(trace_data.tool);
 
-    std::shared_ptr<Instruction> instruction;
+    std::unique_ptr<Instruction> instruction;
 
     try
     {
@@ -210,11 +210,14 @@ isa_callback(char*     isa_instruction,
 }
 
 void
-shader_data_callback(int64_t se_id, void* se_data, size_t data_size, void* userdata)
+shader_data_callback(int64_t                 se_id,
+                     void*                   se_data,
+                     size_t                  data_size,
+                     rocprofiler_user_data_t userdata)
 {
     C_API_BEGIN
-    assert(userdata && "Shader callback passed null!");
-    ToolData& tool = *reinterpret_cast<ToolData*>(userdata);
+    assert(userdata.ptr && "Shader callback passed null!");
+    ToolData& tool = *reinterpret_cast<ToolData*>(userdata.ptr);
 
     trace_data_t data{.id = se_id, .data = (uint8_t*) se_data, .size = data_size, .tool = &tool};
     auto status = rocprofiler_att_parse_data(copy_trace_data, get_trace_data, isa_callback, &data);

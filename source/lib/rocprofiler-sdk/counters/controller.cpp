@@ -76,6 +76,11 @@ CounterController::configure_agent_collection(rocprofiler_context_id_t          
     auto& ctx = *ctx_p;
 
     if(ctx.counter_collection) return ROCPROFILER_STATUS_ERROR_AGENT_DISPATCH_CONFLICT;
+
+    // FIXME: Due to the clock gating issue, counter collection and PC sampling service
+    // cannot coexist in the same context for now.
+    if(ctx.pc_sampler) return ROCPROFILER_STATUS_ERROR_CONTEXT_CONFLICT;
+
     if(!rocprofiler::buffer::get_buffer(buffer_id.handle))
     {
         return ROCPROFILER_STATUS_ERROR_BUFFER_NOT_FOUND;
@@ -87,10 +92,12 @@ CounterController::configure_agent_collection(rocprofiler_context_id_t          
             std::make_unique<rocprofiler::context::agent_counter_collection_service>();
     }
 
-    ctx.agent_counter_collection->agent_id  = agent_id;
-    ctx.agent_counter_collection->cb        = cb;
-    ctx.agent_counter_collection->user_data = user_data;
-    ctx.agent_counter_collection->buffer    = buffer_id;
+    ctx.agent_counter_collection->agent_data.emplace_back();
+    ctx.agent_counter_collection->agent_data.back().callback_data =
+        rocprofiler_user_data_t{.ptr = user_data};
+    ctx.agent_counter_collection->agent_data.back().agent_id = agent_id;
+    ctx.agent_counter_collection->agent_data.back().cb       = cb;
+    ctx.agent_counter_collection->agent_data.back().buffer   = buffer_id;
 
     return ROCPROFILER_STATUS_SUCCESS;
 }
@@ -114,6 +121,10 @@ CounterController::configure_dispatch(
     auto& ctx = *ctx_p;
 
     if(ctx.agent_counter_collection) return ROCPROFILER_STATUS_ERROR_AGENT_DISPATCH_CONFLICT;
+
+    // FIXME: Due to the clock gating issue, counter collection and PC sampling service
+    // cannot coexist in the same context for now.
+    if(ctx.pc_sampler) return ROCPROFILER_STATUS_ERROR_CONTEXT_CONFLICT;
 
     if(!ctx.counter_collection)
     {
@@ -153,10 +164,24 @@ get_controller()
     return controller;
 }
 
-uint64_t
-create_counter_profile(std::shared_ptr<profile_config>&& config)
+rocprofiler_status_t
+create_counter_profile(std::shared_ptr<profile_config> config)
 {
-    return get_controller().add_profile(std::move(config));
+    auto status = ROCPROFILER_STATUS_SUCCESS;
+    if(status = counters::counter_callback_info::setup_profile_config(config);
+       status != ROCPROFILER_STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    if(status = config->pkt_generator->can_collect(); status != ROCPROFILER_STATUS_SUCCESS)
+    {
+        return status;
+    }
+
+    get_controller().add_profile(std::move(config));
+
+    return status;
 }
 
 void

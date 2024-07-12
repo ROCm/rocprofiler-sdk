@@ -105,6 +105,7 @@ typedef enum  // NOLINT(performance-enum-size)
     ROCPROFILER_STATUS_ERROR_NOT_AVAILABLE,         ///< The service is not available.
                                              ///< Please refer to API functions that return this
                                              ///< status code for more information.
+    ROCPROFILER_STATUS_ERROR_EXCEEDS_HW_LIMIT,  ///< Exceeds hardware limits for collection
     ROCPROFILER_STATUS_LAST,
 } rocprofiler_status_t;
 
@@ -520,9 +521,9 @@ typedef struct
 } rocprofiler_correlation_id_t;
 
 /**
- * @brief The NULL correlation ID value.
+ * @brief The NULL value of an internal correlation ID.
  */
-#define ROCPROFILER_CORRELATION_ID_VALUE_NONE 0ULL
+#define ROCPROFILER_CORRELATION_ID_INTERNAL_NONE ROCPROFILER_UINT64_C(0)
 
 /**
  * @struct rocprofiler_buffer_id_t

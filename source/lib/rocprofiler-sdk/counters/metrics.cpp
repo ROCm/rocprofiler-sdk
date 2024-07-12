@@ -101,7 +101,7 @@ loadXml(const std::string& filename, bool load_constants = false)
          * respec the XML (which we should...).
          */
         if(gfx_name.find("metric") == std::string::npos ||
-           gfx_name.find("top.") == std::string::npos)
+           gfx_name.find("top.") == std::string::npos || gfx_name.find("gfx") == std::string::npos)
             continue;
 
         auto& metricVec =
@@ -195,6 +195,24 @@ getMetricIdMap()
     return id_map;
 }
 
+std::unordered_map<uint64_t, int>
+getPerfCountersIdMap()
+{
+    std::unordered_map<uint64_t, int> map;
+
+    for(const auto& [agent, list] : *CHECK_NOTNULL(getMetricMap()))
+    {
+        if(agent.find("gfx9") == std::string::npos) continue;
+        for(const auto& metric : list)
+        {
+            if(metric.name().find("SQ_") == 0 && !metric.event().empty())
+                map.emplace(metric.id(), std::stoi(metric.event()));
+        }
+    }
+
+    return map;
+}
+
 const MetricMap*
 getMetricMap()
 {
@@ -252,7 +270,7 @@ checkValidMetric(const std::string& agent, const Metric& metric)
 bool
 operator<(Metric const& lhs, Metric const& rhs)
 {
-    return lhs.id() < rhs.id();
+    return std::tie(lhs.id_, lhs.flags_) < std::tie(rhs.id_, rhs.flags_);
 }
 
 bool
@@ -266,7 +284,8 @@ operator==(Metric const& lhs, Metric const& rhs)
                         x.expression_,
                         x.special_,
                         x.id_,
-                        x.empty_);
+                        x.empty_,
+                        x.flags_);
     };
     return get_tie(lhs) == get_tie(rhs);
 }

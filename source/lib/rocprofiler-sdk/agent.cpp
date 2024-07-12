@@ -369,6 +369,9 @@ read_topology()
     auto        data       = std::vector<unique_agent_t>{};
     uint64_t    idcount    = 0;
     uint64_t    nodecount  = 0;
+    uint64_t    cpucount   = 0;
+    uint64_t    gpucount   = 0;
+    uint64_t    unkcount   = 0;
 
     while(true)
     {
@@ -398,11 +401,12 @@ read_topology()
         // we may have been able to open the properties file but if it was empty, we ignore it
         if(properties.empty()) continue;
 
-        auto agent_info            = common::init_public_api_struct(rocprofiler_agent_t{});
-        agent_info.type            = ROCPROFILER_AGENT_TYPE_NONE;
-        agent_info.logical_node_id = idcount++;
-        agent_info.node_id         = node_id;
-        agent_info.id.handle       = (agent_info.logical_node_id) + get_agent_offset();
+        auto agent_info                 = common::init_public_api_struct(rocprofiler_agent_t{});
+        agent_info.type                 = ROCPROFILER_AGENT_TYPE_NONE;
+        agent_info.logical_node_id      = idcount++;
+        agent_info.node_id              = node_id;
+        agent_info.id.handle            = (agent_info.logical_node_id) + get_agent_offset();
+        agent_info.logical_node_type_id = -1;
 
         if(!name_prop.empty())
             agent_info.model_name =
@@ -419,6 +423,15 @@ read_topology()
             agent_info.type = ROCPROFILER_AGENT_TYPE_CPU;
         else if(agent_info.simd_count > 0)
             agent_info.type = ROCPROFILER_AGENT_TYPE_GPU;
+        else
+            ROCP_WARNING << "agent " << agent_info.node_id << " is neither a CPU nor a GPU";
+
+        if(agent_info.type == ROCPROFILER_AGENT_TYPE_CPU)
+            agent_info.logical_node_type_id = cpucount++;
+        else if(agent_info.type == ROCPROFILER_AGENT_TYPE_GPU)
+            agent_info.logical_node_type_id = gpucount++;
+        else
+            agent_info.logical_node_type_id = unkcount++;
 
         read_property(properties, "mem_banks_count", agent_info.mem_banks_count);
         read_property(properties, "caches_count", agent_info.caches_count);
@@ -631,7 +644,7 @@ auto&
 get_agent_caches()
 {
     static auto*& _v = common::static_object<std::vector<hsa::AgentCache>>::construct();
-    return *_v;
+    return *CHECK_NOTNULL(_v);
 }
 
 struct agent_pair
@@ -643,8 +656,8 @@ struct agent_pair
 auto&
 get_agent_mapping()
 {
-    static auto _v = std::vector<agent_pair>{};
-    return _v;
+    static auto*& _v = common::static_object<std::vector<agent_pair>>::construct();
+    return *CHECK_NOTNULL(_v);
 }
 }  // namespace
 
@@ -674,27 +687,28 @@ get_agent(rocprofiler_agent_id_t id)
 const std::vector<aqlprofile_agent_handle_t>&
 get_aql_handles()
 {
-    static std::vector<aqlprofile_agent_handle_t> _v = []() {
-        std::vector<aqlprofile_agent_handle_t> agent_handles;
-        for(auto& agent : get_agents())
-        {
-            aqlprofile_agent_info_t agent_info = {
-                .agent_gfxip          = agent->name,
-                .xcc_num              = agent->num_xcc,
-                .se_num               = agent->num_shader_banks,
-                .cu_num               = agent->cu_count,
-                .shader_arrays_per_se = agent->simd_arrays_per_engine};
-            aqlprofile_agent_handle_t handle = {.handle = 0};
-            if(aqlprofile_register_agent(&handle, &agent_info) != HSA_STATUS_SUCCESS)
+    static auto*& _v =
+        common::static_object<std::vector<aqlprofile_agent_handle_t>>::construct([]() {
+            std::vector<aqlprofile_agent_handle_t> agent_handles;
+            for(auto& agent : get_agents())
             {
-                ROCP_WARNING << "Failed to register agent " << agent->name;
+                aqlprofile_agent_info_t agent_info = {
+                    .agent_gfxip          = agent->name,
+                    .xcc_num              = agent->num_xcc,
+                    .se_num               = agent->num_shader_banks,
+                    .cu_num               = agent->cu_count,
+                    .shader_arrays_per_se = agent->simd_arrays_per_engine};
+                aqlprofile_agent_handle_t handle = {.handle = 0};
+                if(aqlprofile_register_agent(&handle, &agent_info) != HSA_STATUS_SUCCESS)
+                {
+                    ROCP_WARNING << "Failed to register agent " << agent->name;
+                }
+                agent_handles.push_back(handle);
             }
-            agent_handles.push_back(handle);
-        }
-        return agent_handles;
-    }();
+            return agent_handles;
+        }());
 
-    return _v;
+    return *CHECK_NOTNULL(_v);
 }
 
 const aqlprofile_agent_handle_t*
@@ -782,6 +796,8 @@ construct_agent_cache(::HsaApiTable* table)
                "{}",
                fmt::join(rocp_hsa_agent_node_ids.begin(), rocp_hsa_agent_node_ids.end(), ", "));
 
+    get_agent_caches().clear();
+    get_agent_mapping().clear();
     get_agent_mapping().reserve(get_agent_mapping().size() + rocp_agents.size());
 
     auto hsa_agent_node_map = std::unordered_map<uint32_t, hsa_agent_t>{};

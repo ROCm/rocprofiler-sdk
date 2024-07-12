@@ -486,6 +486,9 @@ invoke_client_finalizer(rocprofiler_client_id_t client_id)
                 rocprofiler_tool_finalize_t _finalize_func = nullptr;
                 std::swap(_finalize_func, itr->configure_result->finalize);
 
+                hsa::async_copy_sync();
+                hsa::queue_controller_sync();
+
                 auto _fini_status = get_fini_status();
                 if(_fini_status == 0) set_fini_status(-1);
                 _finalize_func(itr->configure_result->tool_data);
@@ -759,6 +762,7 @@ rocprofiler_set_api_table(const char* name,
 
         rocprofiler::hsa::async_copy_init(hsa_api_table, lib_instance);
         rocprofiler::code_object::initialize(hsa_api_table);
+        rocprofiler::thread_trace::code_object::initialize(hsa_api_table);
 #if ROCPROFILER_SDK_HSA_PC_SAMPLING > 0
         rocprofiler::pc_sampling::code_object::initialize(hsa_api_table);
 #endif

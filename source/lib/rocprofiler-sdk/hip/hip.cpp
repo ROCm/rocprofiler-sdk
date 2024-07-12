@@ -25,8 +25,6 @@
 #include "lib/common/utility.hpp"
 #include "lib/rocprofiler-sdk/buffer.hpp"
 #include "lib/rocprofiler-sdk/context/context.hpp"
-#include "lib/rocprofiler-sdk/hip/details/ostream.hpp"
-#include "lib/rocprofiler-sdk/hip/types.hpp"
 #include "lib/rocprofiler-sdk/hip/utils.hpp"
 #include "lib/rocprofiler-sdk/registration.hpp"
 #include "lib/rocprofiler-sdk/tracing/tracing.hpp"
@@ -221,9 +219,6 @@ hip_api_impl<TableIdx, OpIdx>::functor(Args... args)
         else
             return;
     }
-
-    ROCP_FATAL_IF(external_corr_ids.size() < (callback_contexts.size() + buffered_contexts.size()))
-        << "missing external correlation ids";
 
     auto  buffer_record    = common::init_public_api_struct(buffered_api_data_t{});
     auto  tracer_data      = common::init_public_api_struct(callback_api_data_t{});

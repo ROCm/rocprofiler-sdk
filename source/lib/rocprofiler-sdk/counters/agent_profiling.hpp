@@ -21,11 +21,12 @@
 // SOFTWARE.
 #pragma once
 
+#include "lib/rocprofiler-sdk/counters/controller.hpp"
+#include "lib/rocprofiler-sdk/hsa/aql_packet.hpp"
+
 #include <rocprofiler-sdk/fwd.h>
 #include <rocprofiler-sdk/hsa.h>
 #include <rocprofiler-sdk/rocprofiler.h>
-
-#include "lib/rocprofiler-sdk/hsa/aql_packet.hpp"
 
 namespace rocprofiler
 {
@@ -38,17 +39,40 @@ namespace counters
 {
 struct agent_callback_data
 {
-    CoreApiTable                           table;
-    hsa_queue_t*                           queue{nullptr};
-    std::unique_ptr<hsa::CounterAQLPacket> packet;
+    uint64_t                               context_idx = 0;
+    hsa_queue_t*                           queue       = nullptr;
+    std::unique_ptr<hsa::CounterAQLPacket> packet      = {};
 
     // Tri-state signal used to know what the current state of processing
     // a sample is. The states are:
     //   1: allow next sample to start (i.e. no in progress work)
     //   0: sample in progress
     //  -1: sample complete  (i.e. signal for caller that sample is ready)
-    hsa_signal_t            completion{.handle = 0};
-    rocprofiler_user_data_t user_data{.value = 0};
+    hsa_signal_t            completion    = {.handle = 0};
+    hsa_signal_t            start_signal  = {.handle = 0};
+    rocprofiler_user_data_t user_data     = {.value = 0};
+    rocprofiler_user_data_t callback_data = {.value = 0};
+
+    std::shared_ptr<rocprofiler::counters::profile_config> profile     = {};
+    rocprofiler_agent_id_t                                 agent_id    = {.handle = 0};
+    rocprofiler_agent_profile_callback_t                   cb          = nullptr;
+    rocprofiler_buffer_id_t                                buffer      = {.handle = 0};
+    bool                                                   set_profile = false;
+
+    agent_callback_data() = default;
+    agent_callback_data(agent_callback_data&& rhs) noexcept
+    : queue(rhs.queue)
+    , packet(std::move(rhs.packet))
+    , completion(rhs.completion)
+    , start_signal(rhs.start_signal)
+    , user_data(rhs.user_data)
+    , callback_data(rhs.callback_data)
+    , profile(rhs.profile)
+    , agent_id(rhs.agent_id)
+    , cb(rhs.cb)
+    , buffer(rhs.buffer)
+    {}
+
     ~agent_callback_data();
 };
 
@@ -81,6 +105,9 @@ rocprofiler_status_t
 read_agent_ctx(const context::context*    ctx,
                rocprofiler_user_data_t    user_data,
                rocprofiler_counter_flag_t flags);
+
+uint64_t
+submitPacket(hsa_queue_t* queue, const void* packet);
 
 }  // namespace counters
 }  // namespace rocprofiler

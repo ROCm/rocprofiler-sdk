@@ -20,26 +20,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include "lib/rocprofiler-sdk/agent.hpp"
+#include "lib/rocprofiler-sdk/aql/helpers.hpp"
+#include "lib/rocprofiler-sdk/aql/packet_construct.hpp"
+#include "lib/rocprofiler-sdk/context/context.hpp"
+#include "lib/rocprofiler-sdk/counters/metrics.hpp"
+#include "lib/rocprofiler-sdk/counters/tests/hsa_tables.hpp"
+#include "lib/rocprofiler-sdk/hsa/agent_cache.hpp"
+#include "lib/rocprofiler-sdk/hsa/queue.hpp"
+#include "lib/rocprofiler-sdk/hsa/queue_controller.hpp"
+#include "lib/rocprofiler-sdk/registration.hpp"
+#include "lib/rocprofiler-sdk/thread_trace/att_core.hpp"
+
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <map>
+#include <string>
+#include <unordered_map>
 #include <unordered_set>
-#include "lib/rocprofiler-sdk/context/context.hpp"
-#include "lib/rocprofiler-sdk/registration.hpp"
 
 #include <hsa/hsa.h>
 #include <hsa/hsa_api_trace.h>
 #include <hsa/hsa_ven_amd_aqlprofile.h>
 
-#include "lib/rocprofiler-sdk/agent.hpp"
-#include "lib/rocprofiler-sdk/aql/helpers.hpp"
-#include "lib/rocprofiler-sdk/aql/packet_construct.hpp"
-#include "lib/rocprofiler-sdk/counters/metrics.hpp"
-#include "lib/rocprofiler-sdk/hsa/agent_cache.hpp"
-#include "lib/rocprofiler-sdk/hsa/queue.hpp"
-#include "lib/rocprofiler-sdk/hsa/queue_controller.hpp"
+using namespace rocprofiler::counters::test_constants;
 
 #define ROCPROFILER_CALL(ARG, MSG)                                                                 \
     {                                                                                              \
@@ -49,40 +57,6 @@
 
 namespace rocprofiler
 {
-AmdExtTable&
-get_ext_table()
-{
-    static auto _v = []() {
-        auto val                                  = AmdExtTable{};
-        val.hsa_amd_memory_pool_get_info_fn       = hsa_amd_memory_pool_get_info;
-        val.hsa_amd_agent_iterate_memory_pools_fn = hsa_amd_agent_iterate_memory_pools;
-        val.hsa_amd_memory_pool_allocate_fn       = hsa_amd_memory_pool_allocate;
-        val.hsa_amd_memory_pool_free_fn           = hsa_amd_memory_pool_free;
-        val.hsa_amd_agent_memory_pool_get_info_fn = hsa_amd_agent_memory_pool_get_info;
-        val.hsa_amd_agents_allow_access_fn        = hsa_amd_agents_allow_access;
-        return val;
-    }();
-    return _v;
-}
-
-CoreApiTable&
-get_api_table()
-{
-    static auto _v = []() {
-        auto val                                 = CoreApiTable{};
-        val.hsa_iterate_agents_fn                = hsa_iterate_agents;
-        val.hsa_agent_get_info_fn                = hsa_agent_get_info;
-        val.hsa_queue_create_fn                  = hsa_queue_create;
-        val.hsa_queue_destroy_fn                 = hsa_queue_destroy;
-        val.hsa_signal_wait_relaxed_fn           = hsa_signal_wait_relaxed;
-        val.hsa_queue_load_read_index_relaxed_fn = hsa_queue_load_read_index_relaxed;
-        val.hsa_queue_add_write_index_relaxed_fn = hsa_queue_add_write_index_relaxed;
-        val.hsa_signal_store_screlease_fn        = hsa_signal_store_screlease;
-        return val;
-    }();
-    return _v;
-}
-
 void
 test_init()
 {
@@ -113,24 +87,24 @@ TEST(thread_trace, resource_creation)
     ASSERT_GT(agents.size(), 0);
     for(const auto& [_, agent] : agents)
     {
-        auto params = thread_trace_parameter_pack{};
+        auto params = thread_trace::thread_trace_parameter_pack{};
 
         aql::ThreadTraceAQLPacketFactory factory(agent, params, get_api_table(), get_ext_table());
 
-        auto packet = factory.construct_packet();
+        auto packet = factory.construct_control_packet();
         packet->populate_before();
         packet->populate_after();
 
         size_t vendor_packet = HSA_PACKET_TYPE_VENDOR_SPECIFIC << HSA_PACKET_HEADER_TYPE;
-        ASSERT_TRUE(packet->start.header == vendor_packet);
-        ASSERT_TRUE(packet->stop.header == vendor_packet);
         ASSERT_TRUE(packet->before_krn_pkt.size() > 0);
         ASSERT_TRUE(packet->after_krn_pkt.size() > 0);
+        ASSERT_TRUE(packet->before_krn_pkt.at(0).header == vendor_packet);
+        ASSERT_TRUE(packet->after_krn_pkt.at(0).header == vendor_packet);
     }
 
     {
-        thread_trace_parameter_pack params{};
-        GlobalThreadTracer          tracer(std::move(params));
+        thread_trace::thread_trace_parameter_pack params{};
+        thread_trace::DispatchThreadTracer        tracer(std::move(params));
 
         for(const auto& [_, agent] : agents)
         {
@@ -167,12 +141,12 @@ TEST(thread_trace, configure_test)
     ROCPROFILER_CALL(rocprofiler_create_context(&ctx), "context creation failed");
 
     std::vector<rocprofiler_att_parameter_t> params;
-    params.push_back({ROCPROFILER_ATT_PARAMETER_TARGET_CU, 1});
-    params.push_back({ROCPROFILER_ATT_PARAMETER_SHADER_ENGINE_MASK, 0xF});
-    params.push_back({ROCPROFILER_ATT_PARAMETER_BUFFER_SIZE, 0x1000000});
-    params.push_back({ROCPROFILER_ATT_PARAMETER_SIMD_SELECT, 0xF});
+    params.push_back({ROCPROFILER_ATT_PARAMETER_TARGET_CU, {1}});
+    params.push_back({ROCPROFILER_ATT_PARAMETER_SHADER_ENGINE_MASK, {0xF}});
+    params.push_back({ROCPROFILER_ATT_PARAMETER_BUFFER_SIZE, {0x1000000}});
+    params.push_back({ROCPROFILER_ATT_PARAMETER_SIMD_SELECT, {0xF}});
 
-    rocprofiler_configure_thread_trace_service(
+    rocprofiler_configure_dispatch_thread_trace_service(
         ctx,
         params.data(),
         params.size(),
@@ -180,12 +154,102 @@ TEST(thread_trace, configure_test)
            const rocprofiler_agent_t*,
            rocprofiler_correlation_id_t,
            rocprofiler_kernel_id_t,
+           rocprofiler_dispatch_id_t,
+           rocprofiler_user_data_t*,
            void*) { return ROCPROFILER_ATT_CONTROL_NONE; },
-        [](int64_t, void*, size_t, void*) {},
+        [](int64_t, void*, size_t, rocprofiler_user_data_t) {},
         nullptr);
 
     ASSERT_EQ(hsa_init(), HSA_STATUS_SUCCESS);
     ROCPROFILER_CALL(rocprofiler_start_context(ctx), "context start failed");
     ROCPROFILER_CALL(rocprofiler_stop_context(ctx), "context stop failed");
+    context::pop_client(1);
+    hsa_shut_down();
+}
+
+TEST(thread_trace, perfcounters_configure_test)
+{
+    test_init();
+
+    registration::init_logging();
+    registration::set_init_status(-1);
+    context::push_client(1);
+    rocprofiler_context_id_t ctx;
+    ROCPROFILER_CALL(rocprofiler_create_context(&ctx), "context creation failed");
+
+    // Only GFX9 SQ Block counters are supported
+    std::vector<std::pair<std::string, uint64_t>> perf_counters = {
+        {"SQ_WAVES", 0x1}, {"SQ_WAVES", 0x2}, {"SQ_WAVES", 0x2}, {"GRBM_COUNT", 0x3}};
+    std::set<std::pair<uint32_t, uint32_t>>  expected;
+    std::vector<rocprofiler_att_parameter_t> params;
+    params.push_back({ROCPROFILER_ATT_PARAMETER_PERFCOUNTERS_CTRL, {1}});
+    auto metrics = rocprofiler::counters::getMetricsForAgent("gfx90a");
+
+    for(auto& [counter_name, simd_mask] : perf_counters)
+        for(auto& metric : metrics)
+            if(metric.name() == counter_name)
+            {
+                rocprofiler_att_parameter_t att_param;
+                att_param.type       = ROCPROFILER_ATT_PARAMETER_PERFCOUNTER;
+                att_param.counter_id = rocprofiler_counter_id_t{.handle = metric.id()};
+                att_param.simd_mask  = simd_mask;
+                params.push_back(att_param);
+                expected.insert({std::atoi(metric.event().c_str()), simd_mask});
+            }
+
+    rocprofiler_configure_dispatch_thread_trace_service(
+        ctx,
+        params.data(),
+        params.size(),
+        [](rocprofiler_queue_id_t,
+           const rocprofiler_agent_t*,
+           rocprofiler_correlation_id_t,
+           rocprofiler_kernel_id_t,
+           rocprofiler_dispatch_id_t,
+           rocprofiler_user_data_t*,
+           void*) { return ROCPROFILER_ATT_CONTROL_NONE; },
+        [](int64_t, void*, size_t, rocprofiler_user_data_t) {},
+        nullptr);
+
+    auto* context = rocprofiler::context::get_mutable_registered_context(ctx);
+    auto* tracer  = dynamic_cast<thread_trace::DispatchThreadTracer*>(context->thread_trace.get());
+
+    ASSERT_NE(tracer, nullptr);
+    ASSERT_EQ(tracer->params.perfcounter_ctrl, 1);
+    ASSERT_EQ(tracer->params.perfcounters.size(), 3);
+    for(const auto& param : tracer->params.perfcounters)
+        EXPECT_TRUE(expected.find(param) != expected.end())
+            << "valid AQLprofile mask not generated for perfcounters";
+    context::pop_client(1);
+    hsa_shut_down();
+}
+
+TEST(thread_trace, perfcounters_aql_options_test)
+{
+    hsa_init();
+    test_init();
+
+    registration::init_logging();
+    registration::set_init_status(-1);
+    context::push_client(1);
+
+    const std::uint8_t sqtt_default_num_options = 5;
+    auto               agents = hsa::get_queue_controller()->get_supported_agents();
+
+    thread_trace::thread_trace_parameter_pack _params = {};
+    auto metrics = rocprofiler::counters::getMetricsForAgent("gfx90a");
+    std::vector<std::pair<std::string, uint64_t>> perf_counters = {
+        {"SQ_WAVES", 0x1}, {"SQ_WAVES", 0x2}, {"GRBM_COUNT", 0x3}};
+    for(auto& [counter_name, simd_mask] : perf_counters)
+        for(auto& metric : metrics)
+            if(metric.name() == counter_name)
+                _params.perfcounters.push_back({std::atoi(metric.event().c_str()), simd_mask});
+    _params.perfcounter_ctrl = 2;
+    auto new_tracer          = std::make_unique<thread_trace::ThreadTracerQueue>(
+        _params, begin(agents)->second, get_api_table(), get_ext_table());
+
+    ASSERT_EQ(new_tracer->factory->aql_params.size(),
+              sqtt_default_num_options + perf_counters.size());
+    context::pop_client(1);
     hsa_shut_down();
 }

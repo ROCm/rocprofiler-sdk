@@ -25,6 +25,8 @@
 #include "lib/common/container/small_vector.hpp"
 #include "lib/rocprofiler-sdk/aql/aql_profile_v2.h"
 
+#include <rocprofiler-sdk/rocprofiler.h>
+
 #include <hsa/hsa_ext_amd.h>
 #include <hsa/hsa_ven_amd_aqlprofile.h>
 
@@ -66,21 +68,27 @@ public:
         before_krn_pkt.clear();
         after_krn_pkt.clear();
     }
+    bool isEmpty() const { return empty; }
 
     virtual void populate_before() = 0;
     virtual void populate_after()  = 0;
 
-    aqlprofile_handle_t pkt_handle = {.handle = 0};
+    aqlprofile_handle_t GetHandle() const { return handle; }
+    aqlprofile_handle_t handle = {.handle = 0};
+    bool                empty  = {true};
 
-    bool                             empty   = {true};
-    hsa_ven_amd_aqlprofile_profile_t profile = {};
-    hsa_ext_amd_aql_pm4_packet_t     start   = null_amd_aql_pm4_packet;
-    hsa_ext_amd_aql_pm4_packet_t     stop    = null_amd_aql_pm4_packet;
-    hsa_ext_amd_aql_pm4_packet_t     read    = null_amd_aql_pm4_packet;
     common::container::small_vector<hsa_ext_amd_aql_pm4_packet_t, 3> before_krn_pkt = {};
     common::container::small_vector<hsa_ext_amd_aql_pm4_packet_t, 2> after_krn_pkt  = {};
+};
 
-    bool isEmpty() const { return empty; }
+class EmptyAQLPacket : public AQLPacket
+{
+public:
+    EmptyAQLPacket()           = default;
+    ~EmptyAQLPacket() override = default;
+
+    void populate_before() override{};
+    void populate_after() override{};
 };
 
 class CounterAQLPacket : public AQLPacket
@@ -88,26 +96,52 @@ class CounterAQLPacket : public AQLPacket
     friend class rocprofiler::aql::CounterPacketConstruct;
     using memory_pool_free_func_t = decltype(::hsa_amd_memory_pool_free)*;
 
-public:
-    CounterAQLPacket(memory_pool_free_func_t func)
-    : free_func{func} {};
-    ~CounterAQLPacket() override;
-
-    void populate_before() override { before_krn_pkt.push_back(start); };
-    void populate_after() override
+    struct CounterMemoryPool
     {
-        after_krn_pkt.push_back(stop);
-        after_krn_pkt.push_back(read);
+        using desc_t = aqlprofile_buffer_desc_flags_t;
+
+        hsa_agent_t                             gpu_agent;
+        hsa_amd_memory_pool_t                   cpu_pool_;
+        hsa_amd_memory_pool_t                   kernarg_pool_;
+        decltype(hsa_amd_memory_pool_allocate)* allocate_fn;
+        decltype(hsa_amd_agents_allow_access)*  allow_access_fn;
+        decltype(hsa_amd_memory_pool_free)*     free_fn;
+        decltype(hsa_amd_memory_fill)*          fill_fn;
+        decltype(hsa_memory_copy)*              api_copy_fn;
+        bool                                    bIgnoreKernArg;
+
+        static void         Free(void* ptr, void* data);
+        static hsa_status_t Alloc(void** ptr, size_t size, desc_t flags, void* data);
+        static hsa_status_t Copy(void* dst, const void* src, size_t size, void* data);
     };
 
+public:
+    CounterAQLPacket(aqlprofile_agent_handle_t                  agent,
+                     CounterMemoryPool                          pool,
+                     const std::vector<aqlprofile_pmc_event_t>& events);
+    ~CounterAQLPacket() override { aqlprofile_pmc_delete_packets(this->handle); };
+
+    void populate_before() override
+    {
+        if(!empty) before_krn_pkt.push_back(packets.start_packet);
+    };
+    void populate_after() override
+    {
+        if(empty) return;
+        after_krn_pkt.push_back(packets.read_packet);
+        after_krn_pkt.push_back(packets.stop_packet);
+    };
+
+    aqlprofile_pmc_aql_packets_t packets{};
+
 protected:
-    bool                    command_buf_mallocd    = false;
-    bool                    output_buffer_malloced = false;
-    memory_pool_free_func_t free_func              = nullptr;
+    CounterMemoryPool pool{};
 };
 
 struct TraceMemoryPool
 {
+    using desc_t = aqlprofile_buffer_desc_flags_t;
+
     hsa_agent_t                             gpu_agent;
     hsa_amd_memory_pool_t                   cpu_pool_;
     hsa_amd_memory_pool_t                   gpu_pool_;
@@ -115,33 +149,16 @@ struct TraceMemoryPool
     decltype(hsa_amd_agents_allow_access)*  allow_access_fn;
     decltype(hsa_amd_memory_pool_free)*     free_fn;
     decltype(hsa_memory_copy)*              api_copy_fn;
-};
 
-class BaseTTAQLPacket : public AQLPacket
-{
-    friend class rocprofiler::aql::ThreadTraceAQLPacketFactory;
-
-protected:
-    using desc_t = aqlprofile_buffer_desc_flags_t;
-
-public:
-    BaseTTAQLPacket(const TraceMemoryPool& _tracepool)
-    : tracepool(_tracepool){};
-    ~BaseTTAQLPacket() override { aqlprofile_att_delete_packets(this->handle); };
-
-    aqlprofile_handle_t GetHandle() const { return handle; }
-    hsa_agent_t         GetAgent() const { return tracepool.gpu_agent; }
-
-protected:
-    TraceMemoryPool     tracepool;
     aqlprofile_handle_t handle;
+    ~TraceMemoryPool() { aqlprofile_att_delete_packets(this->handle); };
 
     static hsa_status_t Alloc(void** ptr, size_t size, desc_t flags, void* data);
     static void         Free(void* ptr, void* data);
     static hsa_status_t Copy(void* dst, const void* src, size_t size, void* data);
 };
 
-class CodeobjMarkerAQLPacket : public BaseTTAQLPacket
+class CodeobjMarkerAQLPacket : public AQLPacket
 {
     friend class rocprofiler::aql::ThreadTraceAQLPacketFactory;
 
@@ -157,10 +174,16 @@ public:
     void populate_before() override { before_krn_pkt.push_back(packet); };
     void populate_after() override{};
 
+    aqlprofile_handle_t GetHandle() const { return tracepool.handle; }
+    hsa_agent_t         GetAgent() const { return tracepool.gpu_agent; }
+
     hsa_ext_amd_aql_pm4_packet_t packet;
+
+protected:
+    TraceMemoryPool tracepool;
 };
 
-class TraceControlAQLPacket : public BaseTTAQLPacket
+class TraceControlAQLPacket : public AQLPacket
 {
     friend class rocprofiler::aql::ThreadTraceAQLPacketFactory;
     using code_object_id_t = uint64_t;
@@ -170,19 +193,37 @@ public:
                           const aqlprofile_att_profile_t& profile);
     ~TraceControlAQLPacket() override = default;
 
+    explicit TraceControlAQLPacket(const TraceControlAQLPacket& other)
+    : AQLPacket()
+    {
+        this->tracepool      = other.tracepool;
+        this->packets        = other.packets;
+        this->loaded_codeobj = other.loaded_codeobj;
+    }
+
+    aqlprofile_handle_t GetHandle() const { return tracepool->handle; }
+    hsa_agent_t         GetAgent() const { return tracepool->gpu_agent; }
+
+    void populate_before() override
+    {
+        before_krn_pkt.push_back(packets.start_packet);
+        for(auto& [_, codeobj] : loaded_codeobj)
+            before_krn_pkt.push_back(codeobj->packet);
+    }
+    void populate_after() override { after_krn_pkt.push_back(packets.stop_packet); }
+
     void add_codeobj(code_object_id_t id, uint64_t addr, uint64_t size)
     {
         loaded_codeobj[id] =
-            std::make_unique<CodeobjMarkerAQLPacket>(tracepool, id, addr, size, true, false);
+            std::make_shared<CodeobjMarkerAQLPacket>(*tracepool, id, addr, size, true, false);
     }
-    void remove_codeobj(code_object_id_t id) { loaded_codeobj.erase(id); }
+    bool remove_codeobj(code_object_id_t id) { return loaded_codeobj.erase(id) != 0; }
 
-    void populate_before() override;
-    void populate_after() override { after_krn_pkt.push_back(packets.stop_packet); }
+protected:
+    std::shared_ptr<TraceMemoryPool>     tracepool;
+    aqlprofile_att_control_aql_packets_t packets;
 
-private:
-    aqlprofile_att_control_aql_packets_t                                          packets;
-    std::unordered_map<code_object_id_t, std::unique_ptr<CodeobjMarkerAQLPacket>> loaded_codeobj;
+    std::unordered_map<code_object_id_t, std::shared_ptr<CodeobjMarkerAQLPacket>> loaded_codeobj;
 };
 
 }  // namespace hsa

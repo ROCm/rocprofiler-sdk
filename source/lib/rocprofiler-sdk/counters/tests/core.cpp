@@ -26,6 +26,7 @@
 #include "lib/rocprofiler-sdk/context/context.hpp"
 #include "lib/rocprofiler-sdk/counters/dispatch_handlers.hpp"
 #include "lib/rocprofiler-sdk/counters/metrics.hpp"
+#include "lib/rocprofiler-sdk/counters/tests/hsa_tables.hpp"
 #include "lib/rocprofiler-sdk/hsa/agent_cache.hpp"
 #include "lib/rocprofiler-sdk/hsa/queue.hpp"
 #include "lib/rocprofiler-sdk/hsa/queue_controller.hpp"
@@ -47,6 +48,7 @@
 #include <sstream>
 #include <tuple>
 
+using namespace rocprofiler::counters::test_constants;
 using namespace rocprofiler::counters;
 using namespace rocprofiler;
 
@@ -68,43 +70,6 @@ using namespace rocprofiler;
 
 namespace
 {
-AmdExtTable&
-get_ext_table()
-{
-    static auto _v = []() {
-        auto val                                  = AmdExtTable{};
-        val.hsa_amd_memory_pool_get_info_fn       = hsa_amd_memory_pool_get_info;
-        val.hsa_amd_agent_iterate_memory_pools_fn = hsa_amd_agent_iterate_memory_pools;
-        val.hsa_amd_memory_pool_allocate_fn       = hsa_amd_memory_pool_allocate;
-        val.hsa_amd_memory_pool_free_fn           = hsa_amd_memory_pool_free;
-        val.hsa_amd_agent_memory_pool_get_info_fn = hsa_amd_agent_memory_pool_get_info;
-        val.hsa_amd_agents_allow_access_fn        = hsa_amd_agents_allow_access;
-        return val;
-    }();
-    return _v;
-}
-
-CoreApiTable&
-get_api_table()
-{
-    static auto _v = []() {
-        auto val                           = CoreApiTable{};
-        val.hsa_iterate_agents_fn          = hsa_iterate_agents;
-        val.hsa_agent_get_info_fn          = hsa_agent_get_info;
-        val.hsa_queue_create_fn            = hsa_queue_create;
-        val.hsa_queue_destroy_fn           = hsa_queue_destroy;
-        val.hsa_signal_create_fn           = hsa_signal_create;
-        val.hsa_signal_destroy_fn          = hsa_signal_destroy;
-        val.hsa_signal_store_screlease_fn  = hsa_signal_store_screlease;
-        val.hsa_signal_load_scacquire_fn   = hsa_signal_load_scacquire;
-        val.hsa_signal_add_relaxed_fn      = hsa_signal_add_relaxed;
-        val.hsa_signal_subtract_relaxed_fn = hsa_signal_subtract_relaxed;
-        val.hsa_signal_wait_relaxed_fn     = hsa_signal_wait_relaxed;
-        return val;
-    }();
-    return _v;
-}
-
 auto
 findDeviceMetrics(const hsa::AgentCache& agent, const std::unordered_set<std::string>& metrics)
 {
@@ -151,28 +116,14 @@ get_client_ctx()
     return ctx;
 }
 
-struct buf_check
-{
-    size_t expected_size{0};
-    bool   is_special{false};
-    double special_val{0.0};
-};
-
 void
 buffered_callback(rocprofiler_context_id_t,
                   rocprofiler_buffer_id_t,
                   rocprofiler_record_header_t** headers,
                   size_t                        num_headers,
-                  void*                         user_data,
+                  void* /* user_data */,
                   uint64_t)
 {
-    buf_check& expected = *static_cast<buf_check*>(user_data);
-    if(expected.is_special)
-    {
-        // Special values are single value constants (from agent_t)
-        expected.expected_size = 1;
-    }
-
     std::set<double>   seen_data;
     std::set<uint64_t> seen_dims;
     for(size_t i = 0; i < num_headers; ++i)
@@ -262,7 +213,7 @@ TEST(core, check_packet_generation)
                 "Unable to create profile");
             auto profile = counters::get_profile_config(cfg_id);
             ASSERT_TRUE(profile);
-            EXPECT_EQ(counters::counter_callback_info::setup_profile_config(agent, profile),
+            EXPECT_EQ(counters::counter_callback_info::setup_profile_config(profile),
                       ROCPROFILER_STATUS_SUCCESS)
                 << fmt::format("Could not build profile for {}", metric.name());
 
@@ -279,7 +230,7 @@ TEST(core, check_packet_generation)
              */
             counters::counter_callback_info cb_info;
             std::unique_ptr<hsa::AQLPacket> pkt;
-            EXPECT_EQ(cb_info.get_packet(pkt, agent, profile), ROCPROFILER_STATUS_SUCCESS)
+            EXPECT_EQ(cb_info.get_packet(pkt, profile), ROCPROFILER_STATUS_SUCCESS)
                 << "Unable to generate packet";
             EXPECT_TRUE(pkt) << "Expected a packet to be generated";
             cb_info.packet_return_map.wlock([&](const auto& data) {
@@ -492,32 +443,16 @@ TEST(core, check_callbacks)
                                                 metric.name());
 
             /**
-             * Fake some data for the counter
-             */
-            size_t* fake_data = static_cast<size_t*>(ret_pkt->profile.output_buffer.ptr);
-            for(size_t i = 0; i < (ret_pkt->profile.output_buffer.size / sizeof(size_t)); i++)
-            {
-                fake_data[i] = i + 1;
-            }
-
-            /**
              * Create the buffer and run test
              */
             rocprofiler_buffer_id_t opt_buff_id = {.handle = 0};
-            buf_check               check       = {
-                .expected_size = ret_pkt->profile.output_buffer.size / sizeof(size_t),
-                .is_special    = !metric.special().empty(),
-                .special_val   = (metric.special().empty() ? 0.0
-                                                                               : double(counters::get_agent_property(
-                                                               std::string_view(metric.name()),
-                                                               *agent.get_rocp_agent())))};
 
             ROCPROFILER_CALL(rocprofiler_create_buffer(get_client_ctx(),
                                                        500 * sizeof(size_t),
                                                        500 * sizeof(size_t),
                                                        ROCPROFILER_BUFFER_POLICY_LOSSLESS,
                                                        buffered_callback,
-                                                       &check,
+                                                       nullptr,
                                                        &opt_buff_id),
                              "Could not create buffer");
             cb_info->buffer = opt_buff_id;
@@ -705,6 +640,68 @@ TEST(core, start_stop_callback_ctx)
 
     registration::set_init_status(1);
     context::pop_client(1);
+}
+
+TEST(core, test_profile_incremental)
+{
+    ASSERT_EQ(hsa_init(), HSA_STATUS_SUCCESS);
+    test_init();
+    ASSERT_TRUE(hsa::get_queue_controller() != nullptr);
+    auto agents = hsa::get_queue_controller()->get_supported_agents();
+    ASSERT_GT(agents.size(), 0);
+    for(const auto& [_, agent] : agents)
+    {
+        auto metrics = findDeviceMetrics(agent, {});
+        ASSERT_FALSE(metrics.empty());
+        ASSERT_TRUE(agent.get_rocp_agent());
+
+        std::map<std::string, std::vector<counters::Metric>> metric_blocks;
+        for(const auto& metric : metrics)
+        {
+            if(!metric.block().empty())
+            {
+                metric_blocks[metric.block()].push_back(metric);
+            }
+        }
+
+        rocprofiler_profile_config_id_t cfg_id = {};
+
+        // Add one counter from each block to incrementally to make sure we can
+        // add them incrementally
+        for(const auto& [block_name, block_metrics] : metric_blocks)
+        {
+            rocprofiler_profile_config_id_t old_id = cfg_id;
+            rocprofiler_counter_id_t        id     = {.handle = block_metrics.front().id()};
+            ROCPROFILER_CALL(
+                rocprofiler_create_profile_config(agent.get_rocp_agent()->id, &id, 1, &cfg_id),
+                "Unable to create profile incrementally when we should be able to");
+            EXPECT_NE(old_id.handle, cfg_id.handle)
+                << "We expect that the handle changes this is due to the existing profile being "
+                   "unmodifiable after creation: "
+                << block_name;
+        }
+
+        // Check that we encounter an error of exceeds hardware limits eventually
+        auto status = ROCPROFILER_STATUS_SUCCESS;
+        for(const auto& metric : metrics)
+        {
+            /**
+             * Check profile construction
+             */
+            rocprofiler_counter_id_t id = {.handle = metric.id()};
+            if(status =
+                   rocprofiler_create_profile_config(agent.get_rocp_agent()->id, &id, 1, &cfg_id);
+               status != ROCPROFILER_STATUS_SUCCESS)
+            {
+                break;
+            }
+        }
+        EXPECT_EQ(status, ROCPROFILER_STATUS_ERROR_EXCEEDS_HW_LIMIT);
+    }
+
+    registration::set_init_status(1);
+
+    registration::finalize();
 }
 
 TEST(core, public_api_iterate_agents)

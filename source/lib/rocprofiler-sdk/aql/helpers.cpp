@@ -21,15 +21,15 @@
 // SOFTWARE.
 
 #include "lib/rocprofiler-sdk/aql/helpers.hpp"
-
-#include <fmt/core.h>
-
-#include <rocprofiler-sdk/fwd.h>
-
 #include "lib/common/logging.hpp"
 #include "lib/common/synchronized.hpp"
 #include "lib/common/utility.hpp"
 #include "lib/rocprofiler-sdk/counters/id_decode.hpp"
+#include "lib/rocprofiler-sdk/hsa/hsa.hpp"
+
+#include <rocprofiler-sdk/fwd.h>
+
+#include <fmt/core.h>
 
 namespace rocprofiler
 {
@@ -66,9 +66,9 @@ get_block_counters(rocprofiler_agent_id_t agent, const aqlprofile_pmc_event_t& e
 
 rocprofiler_status_t
 set_dim_id_from_sample(rocprofiler_counter_instance_id_t& id,
-                       hsa_agent_t                        agent,
-                       hsa_ven_amd_aqlprofile_event_t     event,
-                       uint32_t                           sample_id)
+                       aqlprofile_agent_handle_t          agent,
+                       aqlprofile_pmc_event_t             event,
+                       size_t                             sample_id)
 {
     auto callback =
         [](int, int sid, int, int coordinate, const char*, void* userdata) -> hsa_status_t {
@@ -82,8 +82,8 @@ set_dim_id_from_sample(rocprofiler_counter_instance_id_t& id,
         return HSA_STATUS_SUCCESS;
     };
 
-    if(hsa_ven_amd_aqlprofile_iterate_event_coord(
-           agent, event, sample_id, callback, static_cast<void*>(&id)) != HSA_STATUS_SUCCESS)
+    if(aqlprofile_iterate_event_coord(agent, event, sample_id, callback, static_cast<void*>(&id)) !=
+       HSA_STATUS_SUCCESS)
     {
         return ROCPROFILER_STATUS_ERROR_AQL_NO_EVENT_COORD;
     }
@@ -114,11 +114,15 @@ get_dim_info(rocprofiler_agent_id_t   agent,
 }
 
 rocprofiler_status_t
-set_profiler_active_on_queue(const AmdExtTable&                api,
-                             hsa_amd_memory_pool_t             pool,
+set_profiler_active_on_queue(hsa_amd_memory_pool_t             pool,
                              hsa_agent_t                       hsa_agent,
                              const rocprofiler_profile_pkt_cb& packet_submit)
 {
+    CHECK(hsa::get_amd_ext_table() != nullptr);
+    CHECK(hsa::get_amd_ext_table()->hsa_amd_memory_pool_allocate_fn != nullptr);
+    CHECK(hsa::get_amd_ext_table()->hsa_amd_agents_allow_access_fn != nullptr);
+    CHECK(hsa::get_amd_ext_table()->hsa_amd_memory_pool_free_fn != nullptr);
+
     // Inject packet to enable profiling of other process queues on this queue
     hsa_ven_amd_aqlprofile_profile_t profile{};
     profile.agent = hsa_agent;
@@ -134,15 +138,15 @@ set_profiler_active_on_queue(const AmdExtTable&                api,
     const size_t mask = 0x1000 - 1;
     auto         size = (profile.command_buffer.size + mask) & ~mask;
 
-    if(api.hsa_amd_memory_pool_allocate_fn(pool, size, 0, &profile.command_buffer.ptr) !=
-       HSA_STATUS_SUCCESS)
+    if(hsa::get_amd_ext_table()->hsa_amd_memory_pool_allocate_fn(
+           pool, size, 0, &profile.command_buffer.ptr) != HSA_STATUS_SUCCESS)
     {
         ROCP_WARNING << "Failed to allocate memory to enable profile command on agent, some "
                         "counters will be unavailable";
         return ROCPROFILER_STATUS_ERROR;
     }
-    if(api.hsa_amd_agents_allow_access_fn(1, &hsa_agent, nullptr, profile.command_buffer.ptr) !=
-       HSA_STATUS_SUCCESS)
+    if(hsa::get_amd_ext_table()->hsa_amd_agents_allow_access_fn(
+           1, &hsa_agent, nullptr, profile.command_buffer.ptr) != HSA_STATUS_SUCCESS)
     {
         ROCP_WARNING << "Agent cannot access memory, some counters will be unavailable";
         return ROCPROFILER_STATUS_ERROR;
@@ -157,7 +161,7 @@ set_profiler_active_on_queue(const AmdExtTable&                api,
     }
 
     packet_submit(packet);
-    api.hsa_amd_memory_pool_free_fn(profile.command_buffer.ptr);
+    hsa::get_amd_ext_table()->hsa_amd_memory_pool_free_fn(profile.command_buffer.ptr);
     return ROCPROFILER_STATUS_SUCCESS;
 }
 
