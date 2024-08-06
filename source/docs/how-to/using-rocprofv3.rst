@@ -486,34 +486,6 @@ The `agent_info.csv` file contains information about the CPU or GPU the kernel r
   0,0,"CPU",24,0,0,0,0,0,0,0,0,1,24,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3800,0,0,0,0,0,0,23,0,0,0,0,0,0,0,0,0,0,0,"AMD Ryzen 9 3900X 12-Core Processor","CPU","AMD Ryzen 9 3900X 12-Core Processor",""
   1,1,"GPU",0,256,0,2147487744,10,64,0,64,64,1,64,4,4,1,16,4,32,90000,4098,26751,12032,0,128,2,0,2,24,3800,1630,432,440,138420864,16,40,141,1024,4294967295,0,0,64700,1024,1024,1024,4294967295,4294967295,4294967295,"gfx900","AMD","Radeon RX Vega","vega10"
 
-Kernel filtering
-+++++++++++++++++
-
-Kernel filtering allows you to filter the kernel profiling output based on the kernel name by specifying regex strings in the input file. To include kernel names matching the regex string in the kernel profiling output, use ``kernel_include_regex``. To exclude the kernel names matching the regex string from the kernel profiling output, use ``kernel_exclude_regex``.
-You can also specify an iteration range for set of iterations of the included kernels. If the iteration range is not specified, then all iterations of the included kernels are profiled.
-
-Here is an input file with kernel filters:
-
-.. code-block:: shell
-
-  $ cat input.yml
-   jobs:
-    - pmc: [SQ_WAVES]
-      kernel_include_regex: "divide"
-      kernel_exclude_regex: ""
-
-To collect counters for the kernels matching the filters specified in the preceding input file, run:
-
-.. code-block:: shell
-
-  rocprofv3 -i input.yml -- <app_relative_path>
-
-  $ cat pass_1/312_counter_collection.csv
-  "Correlation_Id","Dispatch_Id","Agent_Id","Queue_Id","Process_Id","Thread_Id","Grid_Size","Kernel_Name","Workgroup_Size","LDS_Block_Size","Scratch_Size","VGPR_Count","SGPR_Count","Counter_Name","Counter_Value"
-  4,4,1,1,36499,36499,1048576,"divide_kernel(float*, float const*, float const*, int, int)",64,0,0,12,16,"SQ_WAVES",16384
-  8,8,1,2,36499,36499,1048576,"divide_kernel(float*, float const*, float const*, int, int)",64,0,0,12,16,"SQ_WAVES",16384
-  12,12,1,3,36499,36499,1048576,"divide_kernel(float*, float const*, float const*, int, int)",64,0,0,12,16,"SQ_WAVES",16384
-  16,16,1,4,36499,36499,1048576,"divide_kernel(float*, float const*, float const*, int, int)",64,0,0,12,16,"SQ_WAVES",16384
 
 .. _output-file-fields:
 
