@@ -1,7 +1,7 @@
 # ROCprofiler-SDK:  Application Profiling, Tracing, and Performance Analysis
 
 > [!NOTE]
-Note: rocprofiler-sdk is currently considered a beta version and is subject to change in future releases
+Note: rocprofiler-sdk is currently considered a `beta` version and is subject to change in future releases
 
 ## Overview
 
