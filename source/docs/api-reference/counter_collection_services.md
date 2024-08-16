@@ -1,4 +1,4 @@
-# Derived Metrics
+# Counter collection services
 
 ## Accumulate metric
 ### Expression

@@ -145,18 +145,6 @@ tool_init(rocprofiler_client_finalize_t fini_func,
 
 Otherwise, the rocprofiler will invoke the `finalize` callback via an `atexit` handler.
 
-## Agent Information
-
-## Contexts
-
-## Configuring Services
-
-## Synchronous Callbacks
-
-## Asynchronous Callbacks for Buffers
-
-## Recommendations
-
 ## Full `rocprofiler_configure` Sample
 
 All of the snippets from the previous sections have been combined here for convenience.

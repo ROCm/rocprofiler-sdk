@@ -6,19 +6,26 @@ defaults:
 
 root: index
 subtrees:
-  - caption: Table of Contents
-    entries: 
-    - file: features
-    - file: installation
-    - file: tool_library_overview
-    - file: callback_services
-    - file: buffered_services
-    - file: pc_sampling
-    - file: intercept_table
-    - file: counter_collection_services
+  - caption: Install
+    entries:
+    - file: install/installation
+  - caption: How to
+    entries:
+    - file: how-to/using-rocprofv3
+    - file: how-to/samples
+  - caption: API reference
+    entries:
+    - file: api-reference/buffered_services
+    - file: api-reference/callback_services
+    - file: api-reference/counter_collection_services
+    - file: api-reference/intercept_table
+    - file: api-reference/pc_sampling
+    - file: api-reference/tool_library
     - file: _doxygen/html/index
-    - file: samples
-    - file: rocprofv3
+      title: API library
+  - caption: Conceptual
+    entries:
+    - file: conceptual/comparing-with-legacy-tools
   - caption: License
     entries:
     - file: license
