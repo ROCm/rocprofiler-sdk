@@ -20,9 +20,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <rocprofiler-sdk/rocprofiler.h>
-
+#include "lib/rocprofiler-sdk/counters/controller.hpp"
 #include "lib/rocprofiler-sdk/counters/core.hpp"
+
+#include <rocprofiler-sdk/rocprofiler.h>
 
 extern "C" {
 /**
@@ -37,7 +38,7 @@ extern "C" {
  * @param [in] profile profile config to use for dispatch
  * @return ::rocprofiler_status_t
  */
-rocprofiler_status_t ROCPROFILER_API
+rocprofiler_status_t
 rocprofiler_configure_buffered_dispatch_profile_counting_service(
     rocprofiler_context_id_t                         context_id,
     rocprofiler_buffer_id_t                          buffer_id,
@@ -60,7 +61,7 @@ rocprofiler_configure_buffered_dispatch_profile_counting_service(
  * @param [in] record_callback_args Callback args for record callback
  * @return ::rocprofiler_status_t
  */
-rocprofiler_status_t ROCPROFILER_API
+rocprofiler_status_t
 rocprofiler_configure_callback_dispatch_profile_counting_service(
     rocprofiler_context_id_t                         context_id,
     rocprofiler_profile_counting_dispatch_callback_t dispatch_callback,
