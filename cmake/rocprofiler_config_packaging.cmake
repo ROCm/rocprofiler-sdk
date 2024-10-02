@@ -199,9 +199,9 @@ set(CPACK_RPM_PACKAGE_LICENSE "MIT")
 # -------------------------------------------------------------------------------------- #
 # Make proper version for appending
 # Default Value is 99999
-set(ROCM_VERSION_FOR_PACKAGE "99999")
+set(ROCM_VERSION_FOR_PACKAGE "99999" CACHE STRING "")
 if(DEFINED ENV{ROCM_LIBPATCH_VERSION})
-    set(ROCM_VERSION_FOR_PACKAGE $ENV{ROCM_LIBPATCH_VERSION})
+    set(ROCM_VERSION_FOR_PACKAGE "$ENV{ROCM_LIBPATCH_VERSION}" CACHE STRING "" FORCE)
 endif()
 #Prepare final version for the CPACK use
 set(CPACK_PACKAGE_VERSION
