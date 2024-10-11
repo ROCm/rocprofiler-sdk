@@ -154,7 +154,7 @@ Here is the sample of commonly used ``rocprofv3`` command-line options. Some opt
     - Perfetto shared memory size hint in KB. default: 64 KB
     - Extension
 
-You can also see all the ``rocprofv3`` options using:
+To see exhaustive list of ``rocprofv3`` options, run:
 
 .. code-block:: bash
 
@@ -257,10 +257,16 @@ Here is a list of useful APIs for code instrumentation.
 - ``roctxRangePop``: Stops the current nested range.
 - ``roctxRangeStop``: Stops the given range.
 
+.. note::
+  Above list is not exhaustive. See public header file <rocprofiler-sdk-roctx/roctx.h> for more APIs.
+  To use ``rocprofv3`` for marker tracing, please include header <rocprofiler-sdk-roctx/roctx.h> and link your application with ``librocprofiler-sdk-roctx.so``.
+
 See how to use ``rocTX`` APIs in the MatrixTranspose application below:
 
 .. code-block:: bash
 
+    #include <rocprofiler-sdk-roctx/roctx.h>
+   
     roctxMark("before hipLaunchKernel");
     int rangeId = roctxRangeStart("hipLaunchKernel range");
     roctxRangePush("hipLaunchKernel");
