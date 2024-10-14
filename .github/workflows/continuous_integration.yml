@@ -461,7 +461,7 @@ jobs:
     - name: Write Code Coverage Comment
       if: github.event_name == 'pull_request'
       timeout-minutes: 5
-      uses: thollander/actions-comment-pull-request@v2.5.0
+      uses: thollander/actions-comment-pull-request@v3.0.0
       with:
         comment_tag: codecov-report
         filePath: .codecov/report.md
