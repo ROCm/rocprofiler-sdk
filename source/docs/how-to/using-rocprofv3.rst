@@ -387,70 +387,7 @@ For a comprehensive list of counters available on MI200, see `MI200 performance 
 Input file
 ++++++++++++
 
-To collect the desired basic counters or derived metrics or tracing, mention them in an input file. The input file could be in text (.txt), yaml (.yaml/.yml), or JSON (.json) format.
-
-In the input text file, the line consisting of the counter or metric names must begin with ``pmc``.
-The number of basic counters or derived metrics that can be collected in one run of profiling are limited by the GPU hardware resources. If too many counters or metrics are selected, the kernels need to be executed multiple times to collect them. For multi-pass execution, include multiple ``pmc`` rows in the input file. Counters or metrics in each ``pmc`` row can be collected in each application run.
-
-The JSON and YAML files supports all the command line options and it can be used to configure both tracing and profiling. The input file has an array of profiling/tracing configurations called jobs. Each job is used to configure profiling/tracing for an application execution. The input schema of these files is given below.
-
-Properties
-++++++++++++
-
--  **``jobs``** *(array)*: rocprofv3 input data per application run.
-
-   -  **Items** *(object)*: data for rocprofv3.
-
-      -  **``pmc``** *(array)*: list of counters to collect.
-      -  **``kernel_include_regex``** *(string)*: Include the kernels
-         matching this filter.
-      -  **``kernel_exclude_regex``** *(string)*: Exclude the kernels
-         matching this filter.
-      -  **``kernel_iteration_range``** *(string)*: Iteration range for
-         each kernel that match the filter [start-stop].
-      -  **``hip_trace``** *(boolean)*: For Collecting HIP Traces
-         (runtime + compiler).
-      -  **``hip_runtime_trace``** *(boolean)*: For Collecting HIP
-         Runtime API Traces.
-      -  **``hip_compiler_trace``** *(boolean)*: For Collecting HIP
-         Compiler generated code Traces.
-      -  **``marker_trace``** *(boolean)*: For Collecting Marker (ROCTx)
-         Traces.
-      -  **``kernel_trace``** *(boolean)*: For Collecting Kernel
-         Dispatch Traces.
-      -  **``memory_copy_trace``** *(boolean)*: For Collecting Memory
-         Copy Traces.
-      -  **``scratch_memory_trace``** *(boolean)*: For Collecting
-         Scratch Memory operations Traces.
-      -  **``stats``** *(boolean)*: For Collecting statistics of enabled
-         tracing types.
-      -  **``hsa_trace``** *(boolean)*: For Collecting HSA Traces (core
-         + amd + image + finalizer).
-      -  **``hsa_core_trace``** *(boolean)*: For Collecting HSA API
-         Traces (core API).
-      -  **``hsa_amd_trace``** *(boolean)*: For Collecting HSA API
-         Traces (AMD-extension API).
-      -  **``hsa_finalize_trace``** *(boolean)*: For Collecting HSA API
-         Traces (Finalizer-extension API).
-      -  **``hsa_image_trace``** *(boolean)*: For Collecting HSA API
-         Traces (Image-extension API).
-      -  **``sys_trace``** *(boolean)*: For Collecting HIP, HSA, Marker
-         (ROCTx), Memory copy, Scratch memory, and Kernel dispatch
-         traces.
-      -  **``mangled_kernels``** *(boolean)*: Do not demangle the kernel
-         names.
-      -  **``truncate_kernels``** *(boolean)*: Truncate the demangled
-         kernel names.
-      -  **``output_file``** *(string)*: For the output file name.
-      -  **``output_directory``** *(string)*: For adding output path
-         where the output files will be saved.
-      -  **``output_format``** *(array)*: For adding output format
-         (supported formats: csv, json, pftrace).
-      -  **``list_metrics``** *(boolean)*: List the metrics.
-      -  **``log_level``** *(string)*: fatal, error, warning, info,
-         trace.
-      -  **``preload``** *(array)*: Libraries to prepend to LD_PRELOAD
-         (usually for sanitizers).
+To collect the desired basic counters or derived metrics, mention them in an input file. In the input file, the line consisting of the counter or metric names must begin with ``pmc``. The input file could be in text (.txt), yaml (.yaml/.yml), or JSON (.json) format.
 
 .. code-block:: shell
 
@@ -464,21 +401,13 @@ Properties
   $ cat input.json
 
   {
-    "jobs": [
+    "metrics": [
       {
         "pmc": ["SQ_WAVES", "GRBM_COUNT", "GUI_ACTIVE"]
       },
       {
-        "pmc": ["FETCH_SIZE", "WRITE_SIZE"],
-        "kernel_include_regex": ".*_kernel",
-        "kernel_exclude_regex": "multiply",
-        "kernel_iteration_range": "[1-2]","[3-4]"
-        "output_file": "out",
-        "output_format": [
-                "csv",
-                "json"
-        ],
-        "truncate_kernels": true
+        "pmc": ["FETCH_SIZE", "WRITE_SIZE"]
+      }
     ]
   }
 
@@ -486,7 +415,7 @@ Properties
 
   $ cat input.yaml
 
-  jobs:
+  metrics:
     - pmc:
         - SQ_WAVES
         - GRBM_COUNT
@@ -497,6 +426,7 @@ Properties
         - FETCH_SIZE
         - WRITE_SIZE
 
+The number of basic counters or derived metrics that can be collected in one run of profiling are limited by the GPU hardware resources. If too many counters or metrics are selected, the kernels need to be executed multiple times to collect them. For multi-pass execution, include multiple ``pmc`` rows in the input file. Counters or metrics in each ``pmc`` row can be collected in each kernel run.
 
 Kernel profiling output
 +++++++++++++++++++++++++
