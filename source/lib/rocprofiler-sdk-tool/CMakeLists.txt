@@ -28,7 +28,7 @@ target_link_libraries(
 set_target_properties(
     rocprofiler-sdk-tool
     PROPERTIES LIBRARY_OUTPUT_DIRECTORY
-               ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/rocprofiler-sdk
+               ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/${PACKAGE_NAME}
                SOVERSION ${PROJECT_VERSION_MAJOR}
                VERSION ${PROJECT_VERSION}
                BUILD_RPATH "\$ORIGIN:\$ORIGIN/.."
@@ -36,7 +36,7 @@ set_target_properties(
 
 install(
     TARGETS rocprofiler-sdk-tool
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/rocprofiler-sdk
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/${PACKAGE_NAME}
     COMPONENT tools
     EXPORT rocprofiler-sdk-tool-targets)
 

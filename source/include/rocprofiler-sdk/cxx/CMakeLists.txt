@@ -8,7 +8,7 @@ set(ROCPROFILER_CXX_HEADER_FILES hash.hpp name_info.hpp operators.hpp perfetto.h
 
 install(
     FILES ${ROCPROFILER_CXX_HEADER_FILES}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rocprofiler-sdk/cxx
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PACKAGE_NAME}/cxx
     COMPONENT development)
 
 add_subdirectory(codeobj)

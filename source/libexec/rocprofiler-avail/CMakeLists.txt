@@ -13,7 +13,7 @@ target_link_libraries(
 
 set_target_properties(
     rocprofv3-list-avail
-    PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBEXECDIR}
+    PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBEXECDIR}/${PACKAGE_NAME}
                SOVERSION ${PROJECT_VERSION_MAJOR}
                VERSION ${PROJECT_VERSION}
                BUILD_RPATH "\$ORIGIN:\$ORIGIN/.."
@@ -21,6 +21,6 @@ set_target_properties(
 
 install(
     TARGETS rocprofv3-list-avail
-    DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}
+    DESTINATION ${CMAKE_INSTALL_LIBEXECDIR}/${PACKAGE_NAME}
     COMPONENT tools
     EXPORT rocprofiler-sdk-tool-targets)

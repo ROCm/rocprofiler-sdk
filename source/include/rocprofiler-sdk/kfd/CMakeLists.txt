@@ -7,5 +7,5 @@ set(ROCPROFILER_KFD_HEADER_FILES page_migration_args.h page_migration_id.h)
 
 install(
     FILES ${ROCPROFILER_KFD_HEADER_FILES}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rocprofiler-sdk/kfd
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PACKAGE_NAME}/kfd
     COMPONENT development)

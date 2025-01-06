@@ -8,5 +8,5 @@ set(ROCPROFILER_HIP_HEADER_FILES api_args.h api_id.h compiler_api_id.h runtime_a
 
 install(
     FILES ${ROCPROFILER_HIP_HEADER_FILES}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rocprofiler-sdk/hip
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PACKAGE_NAME}/hip
     COMPONENT development)

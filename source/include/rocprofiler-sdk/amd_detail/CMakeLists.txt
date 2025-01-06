@@ -8,5 +8,5 @@ set(ROCPROFILER_AMD_DETAIL_HEADER_FILES thread_trace.h thread_trace_core.h
 
 install(
     FILES ${ROCPROFILER_AMD_DETAIL_HEADER_FILES}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rocprofiler-sdk/amd_detail/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PACKAGE_NAME}/amd_detail/
     COMPONENT development)

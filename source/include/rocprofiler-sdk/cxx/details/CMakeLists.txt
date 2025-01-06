@@ -7,5 +7,5 @@ set(ROCPROFILER_CXX_DETAILS_HEADER_FILES tokenize.hpp join.hpp mpl.hpp name_info
 
 install(
     FILES ${ROCPROFILER_CXX_DETAILS_HEADER_FILES}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/rocprofiler-sdk/cxx/details
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PACKAGE_NAME}/cxx/details
     COMPONENT development)
