@@ -23,6 +23,8 @@
 #include "common/defines.hpp"
 #include "hip/hip_runtime.h"
 
+#include <libgen.h>
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -31,6 +33,7 @@
 #include <random>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 
 #define HIP_API_CALL(CALL)                                                                         \
     {                                                                                              \

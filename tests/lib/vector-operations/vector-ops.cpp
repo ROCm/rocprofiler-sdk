@@ -29,6 +29,7 @@
 #include <iostream>
 #include <mutex>
 #include <vector>
+#include <thread>
 
 #include "common/defines.hpp"
 

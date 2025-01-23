@@ -24,6 +24,8 @@
 
 #include "client.hpp"
 
+#include <libgen.h>
+
 #define HIP_CALL(call)                                                                             \
     do                                                                                             \
     {                                                                                              \

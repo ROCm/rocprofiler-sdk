@@ -22,10 +22,12 @@
 
 #include "hip/hip_runtime.h"
 
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <random>
 #include <stdexcept>
