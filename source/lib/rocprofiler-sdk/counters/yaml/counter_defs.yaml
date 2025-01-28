@@ -587,7 +587,7 @@ MfmaFlopsF64:
 MfmaUtil:
   architectures:
     gfx90a/gfx942/gfx941/gfx940:
-      expression: 100*reduce(SQ_VALU_MFMA_BUSY_CYCLES,sum)/(reduce(GRBM_GUI_ACTIVE,max)*CU_NUM)
+      expression: reduce(SQ_VALU_MFMA_BUSY_CYCLES,sum)/(reduce(GRBM_GUI_ACTIVE,max)*SIMD_NUM)*100
   description: 'Unit: percent'
 RDATA1_SIZE:
   architectures:
@@ -1302,7 +1302,7 @@ SQ_INSTS_VALU_ADD_F16:
       block: SQ
       event: 27
   description: The number of VALU (Vector ALU) ADD/SUB instructions on float16. For maximum performance
-    lower percision floating point ops are preferred to higher percision ones. The value is returned per-SE
+    lower precision floating point ops are preferred to higher precision ones. The value is returned per-SE
     (aggregate of values in SIMDs in the SE). See AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VALU_ADD_F32:
   architectures:
@@ -1310,15 +1310,15 @@ SQ_INSTS_VALU_ADD_F32:
       block: SQ
       event: 31
   description: The number of VALU (Vector ALU) ADD/SUB instructions on float32. For maximum performance
-    lower percision floating point ops are preferred to higher percision ones. The value is returned per-SE
+    lower precision floating point ops are preferred to higher precision ones. The value is returned per-SE
     (aggregate of values in SIMDs in the SE). See AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VALU_ADD_F64:
   architectures:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 35
-  description: The number of VALU ADD/SUB instructions on float64. For maximum performance lower percision
-    floating point ops are preferred to higher percision ones. The value is returned per-SE (aggregate
+  description: The number of VALU ADD/SUB instructions on float64. For maximum performance lower precision
+    floating point ops are preferred to higher precision ones. The value is returned per-SE (aggregate
     of values in SIMDs in the SE). See AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VALU_CVT:
   architectures:
@@ -1334,7 +1334,7 @@ SQ_INSTS_VALU_FMA_F16:
       block: SQ
       event: 29
   description: The number of VALU (Vector ALU) FMA (Fused-Multiply-Add)/MAD(Multiply-Add) instructions
-    on float16. For maximum performance lower percision floating point ops are preferred to higher percision
+    on float16. For maximum performance lower precision floating point ops are preferred to higher precision
     ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more
     information on VALU instructions.
 SQ_INSTS_VALU_FMA_F32:
@@ -1343,7 +1343,7 @@ SQ_INSTS_VALU_FMA_F32:
       block: SQ
       event: 33
   description: The number of VALU (Vector ALU) FMA (Fused-Multiply-Add)/MAD(Multiply-Add) instructions
-    on float32. For maximum performance lower percision floating point ops are preferred to higher percision
+    on float32. For maximum performance lower precision floating point ops are preferred to higher precision
     ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more
     information on VALU instructions.
 SQ_INSTS_VALU_FMA_F64:
@@ -1352,7 +1352,7 @@ SQ_INSTS_VALU_FMA_F64:
       block: SQ
       event: 37
   description: The number of VALU (Vector ALU) FMA (Fused-Multiply-Add)/MAD(Multiply-Add) instructions
-    on float64. For maximum performance lower percision floating point ops are preferred to higher percision
+    on float64. For maximum performance lower precision floating point ops are preferred to higher precision
     ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more
     information on VALU instructions.
 SQ_INSTS_VALU_INT32:
@@ -1376,44 +1376,51 @@ SQ_INSTS_VALU_MFMA_BF16:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 44
-  description: The number of VALU (Vector ALU) MFMA (Matrix-Fused-Multiply-Add) BF16 (outputing bfloat16
-    format) instructions (V_MFMA_*_BF16). For maximum performance lower percision floating point ops are
-    preferred to higher percision ones. The value is returned per-SE (aggregate of values in SIMDs in
+  description: The number of MFMA (Matrix-Fused-Multiply-Add) operating on BF16 format
+    (V_MFMA or V_SMFMAC). For maximum performance lower precision floating point ops are
+    preferred to higher precision ones. The value is returned per-SE (aggregate of values in SIMDs in
     the SE). See AMD ISAs for more information on MFMA instructions.
 SQ_INSTS_VALU_MFMA_F16:
   architectures:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 43
-  description: The number of VALU (Vector ALU) MFMA (Matrix-Fused-Multiply-Add) F16 (outputing float16
-    format) instructions (V_MFMA_*_F16). For maximum performance lower percision floating point ops are
-    preferred to higher percision ones. The value is returned per-SE (aggregate of values in SIMDs in
+  description: The number of MFMA (Matrix-Fused-Multiply-Add) operating on F16 format
+    (V_MFMA or V_SMFMAC). For maximum performance lower precision floating point ops are
+    preferred to higher precision ones. The value is returned per-SE (aggregate of values in SIMDs in
     the SE). See AMD ISAs for more information on MFMA instructions.
 SQ_INSTS_VALU_MFMA_F32:
   architectures:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 45
-  description: The number of VALU (Vector ALU) MFMA (Matrix-Fused-Multiply-Add) F32 (outputing float32
-    format) instructions (V_MFMA_*_F32). For maximum performance lower percision floating point ops are
-    preferred to higher percision ones. The value is returned per-SE (aggregate of values in SIMDs in
+  description: The number of MFMA (Matrix-Fused-Multiply-Add) operating on F32 format
+    (V_MFMA or V_SMFMAC). For maximum performance lower precision floating point ops are
+    preferred to higher precision ones. The value is returned per-SE (aggregate of values in SIMDs in
     the SE). See AMD ISAs for more information on MFMA instructions.
 SQ_INSTS_VALU_MFMA_F64:
   architectures:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 46
-  description: The number of VALU (Vector ALU) MFMA (Matrix-Fused-Multiply-Add) F64 (outputing float32
-    format) instructions (V_MFMA_*_F64). For maximum performance lower percision floating point ops are
-    preferred to higher percision ones. The value is returned per-SE (aggregate of values in SIMDs in
+  description: The number of MFMA (Matrix-Fused-Multiply-Add) operating on F64 format
+    (V_MFMA_F64_*). For maximum performance lower precision floating point ops are
+    preferred to higher precision ones. The value is returned per-SE (aggregate of values in SIMDs in
     the SE). See AMD ISAs for more information on MFMA instructions.
 SQ_INSTS_VALU_MFMA_I8:
   architectures:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 42
-  description: The number of VALU (Vector ALU) MFMA (Matrix-Fused-Multiply-Add) I8 (outputing 8bit intergers)
-    instructions (V_MFMA_*_I8). See AMD ISAs for more information on MFMA instructions.
+  description: The number of MFMA (Matrix-Fused-Multiply-Add) operating on I8 format
+    (V_MFMA or V_SMFMAC). See AMD ISAs for more information on MFMA instructions.
+SQ_INSTS_VALU_MFMA_F8:
+  architectures:
+    gfx942/gfx941/gfx940:
+      block: SQ
+      event: 48
+  description: The number of MFMA (Matrix-Fused-Multiply-Add) operating on F8 format
+    (V_MFMA or V_SMFMAC). See AMD CDNA3 ISA for more informations.
 SQ_INSTS_VALU_MFMA_MOPS_BF16:
   architectures:
     gfx90a:
@@ -1424,7 +1431,7 @@ SQ_INSTS_VALU_MFMA_MOPS_BF16:
       event: 51
   description: The number of math operation instructions on the VALU (Vector ALU) using MFMA (Matrix-Fused-Multiply-Add)
     and operating on BF16 (bfloat16) data. Captures add or mul ops performed divided by 512. For maximum
-    performance lower percision floating point ops are preferred to higher percision ones. The value is
+    performance lower precision floating point ops are preferred to higher precision ones. The value is
     returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more information on MFMA
     instructions.
 SQ_INSTS_VALU_MFMA_MOPS_F16:
@@ -1437,7 +1444,7 @@ SQ_INSTS_VALU_MFMA_MOPS_F16:
       event: 50
   description: The number of math operation instructions on the VALU (Vector ALU) using MFMA (Matrix-Fused-Multiply-Add)
     and operating on F16 (float16) data. Captures add or mul ops performed divided by 512. For maximum
-    performance lower percision floating point ops are preferred to higher percision ones. The value is
+    performance lower precision floating point ops are preferred to higher precision ones. The value is
     returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more information on MFMA
     instructions.
 SQ_INSTS_VALU_MFMA_MOPS_F32:
@@ -1450,7 +1457,7 @@ SQ_INSTS_VALU_MFMA_MOPS_F32:
       event: 52
   description: The number of math operation instructions on the VALU (Vector ALU) using MFMA (Matrix-Fused-Multiply-Add)
     and operating on F32 (float32) data. Captures add or mul ops performed divided by 512. For maximum
-    performance lower percision floating point ops are preferred to higher percision ones. The value is
+    performance lower precision floating point ops are preferred to higher precision ones. The value is
     returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more information on MFMA
     instructions.
 SQ_INSTS_VALU_MFMA_MOPS_F64:
@@ -1463,7 +1470,7 @@ SQ_INSTS_VALU_MFMA_MOPS_F64:
       event: 53
   description: The number of math operation instructions on the VALU (Vector ALU) using MFMA (Matrix-Fused-Multiply-Add)
     and operating on F64 (float64) data. Captures add or mul ops performed divided by 512. For maximum
-    performance lower percision floating point ops are preferred to higher percision ones. The value is
+    performance lower precision floating point ops are preferred to higher precision ones. The value is
     returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more information on MFMA
     instructions.
 SQ_INSTS_VALU_MFMA_MOPS_I8:
@@ -1478,29 +1485,36 @@ SQ_INSTS_VALU_MFMA_MOPS_I8:
     and operating on I8 (8 bit int) data. Captures add or mul ops performed divided by 512. The value
     is returned per-SE (aggregate of values in SIMDs in the SE). See AMD ISAs for more information on
     MFMA instructions.
+SQ_INSTS_VALU_MFMA_MOPS_F8:
+  architectures:
+    gfx942/gfx941/gfx940:
+      block: SQ
+      event: 55
+  description: The number of math operation on F8 datatype. Captures add or mul ops performed divided by 512. The value
+    is returned per-SE (aggregate of values in SIMDs in the SE). See AMD CDNA3 ISA for more information on MFMA F8 instructions.
 SQ_INSTS_VALU_MUL_F16:
   architectures:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 28
-  description: The number of VALU MUL instructions on float16 data. For maximum performance lower percision
-    floating point ops are preferred to higher percision ones. The value is returned per-SE (aggregate
+  description: The number of VALU MUL instructions on float16 data. For maximum performance lower precision
+    floating point ops are preferred to higher precision ones. The value is returned per-SE (aggregate
     of values in SIMDs in the SE). See AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VALU_MUL_F32:
   architectures:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 32
-  description: The number of VALU MUL instructions on float32 data. For maximum performance lower percision
-    floating point ops are preferred to higher percision ones. The value is returned per-SE (aggregate
+  description: The number of VALU MUL instructions on float32 data. For maximum performance lower precision
+    floating point ops are preferred to higher precision ones. The value is returned per-SE (aggregate
     of values in SIMDs in the SE). See AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VALU_MUL_F64:
   architectures:
     gfx942/gfx941/gfx940/gfx90a:
       block: SQ
       event: 36
-  description: The number of VALU MUL instructions on float64 data. For maximum performance lower percision
-    floating point ops are preferred to higher percision ones. The value is returned per-SE (aggregate
+  description: The number of VALU MUL instructions on float64 data. For maximum performance lower precision
+    floating point ops are preferred to higher precision ones. The value is returned per-SE (aggregate
     of values in SIMDs in the SE). See AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VALU_TRANS_F16:
   architectures:
@@ -1508,8 +1522,8 @@ SQ_INSTS_VALU_TRANS_F16:
       block: SQ
       event: 30
   description: The number of VALU transcendental instructions on float16 data. Transcendental instructions
-    include sin, cos, exp, log, etc. For maximum performance lower percision floating point ops are preferred
-    to higher percision ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See
+    include sin, cos, exp, log, etc. For maximum performance lower precision floating point ops are preferred
+    to higher precision ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See
     AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VALU_TRANS_F32:
   architectures:
@@ -1517,8 +1531,8 @@ SQ_INSTS_VALU_TRANS_F32:
       block: SQ
       event: 34
   description: The number of VALU transcendental instructions on float32 data. Transcendental instructions
-    include sin, cos, exp, log, etc. For maximum performance lower percision floating point ops are preferred
-    to higher percision ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See
+    include sin, cos, exp, log, etc. For maximum performance lower precision floating point ops are preferred
+    to higher precision ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See
     AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VALU_TRANS_F64:
   architectures:
@@ -1526,8 +1540,8 @@ SQ_INSTS_VALU_TRANS_F64:
       block: SQ
       event: 38
   description: The number of VALU transcendental instructions on float64 data. Transcendental instructions
-    include sin, cos, exp, log, etc. For maximum performance lower percision floating point ops are preferred
-    to higher percision ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See
+    include sin, cos, exp, log, etc. For maximum performance lower precision floating point ops are preferred
+    to higher precision ones. The value is returned per-SE (aggregate of values in SIMDs in the SE). See
     AMD ISAs for more information on VALU instructions.
 SQ_INSTS_VMEM:
   architectures:
@@ -3899,6 +3913,21 @@ TOTAL_64_OPS:
     gfx942/gfx941/gfx940/gfx90a:
       expression: (SQ_INSTS_VALU_FMA_F64*2+SQ_INSTS_VALU_INT64+SQ_INSTS_VALU_ADD_F64+SQ_INSTS_VALU_MUL_F64)*64+(SQ_INSTS_VALU_MFMA_MOPS_F64*512)
   description: The number of 64 bits OPS executed
+RDC_OPS_16_PER_SIMDCYCLE:
+  architectures:
+    gfx942/gfx941/gfx940/gfx90a:
+      expression: TOTAL_16_OPS/SIMD_NUM/reduce(GRBM_COUNT,max)
+  description: The number of 16 bits OPS executed per simd-cycle
+RDC_OPS_32_PER_SIMDCYCLE:
+  architectures:
+    gfx942/gfx941/gfx940/gfx90a:
+      expression: TOTAL_32_OPS/SIMD_NUM/reduce(GRBM_COUNT,max)
+  description: The number of 32 bits OPS executed per simd-cycle
+RDC_OPS_64_PER_SIMDCYCLE:
+  architectures:
+    gfx942/gfx941/gfx940/gfx90a:
+      expression: TOTAL_64_OPS/SIMD_NUM/reduce(GRBM_COUNT,max)
+  description: The number of 64 bits OPS executed per simd-cycle
 TaUtil:
   architectures:
     gfx90a:
@@ -3928,6 +3957,11 @@ VALUUtilization:
   description: 'The percentage of active vector ALU threads in a wave. A lower number can mean either
     more thread divergence in a wave or that the work-group size is not a multiple of 64. Value range:
     0% (bad), 100% (ideal - no thread divergence).'
+SIMD_UTILIZATION:
+  architectures:
+    gfx942/gfx941/gfx940/gfx90a:
+      expression: reduce(SQ_BUSY_CU_CYCLES,sum)/reduce(GRBM_COUNT,max)/CU_NUM
+  description: 'Fraction of time the SIMDs are being utilized [0,1].'
 VFetchInsts:
   architectures:
     gfx942/gfx941/gfx906/gfx940/gfx908/gfx90a/gfx9/gfx900:
