@@ -485,7 +485,7 @@ jobs:
     - name: Write Code Coverage Comment
       if: github.event_name == 'pull_request'
       timeout-minutes: 5
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: |
           <details>

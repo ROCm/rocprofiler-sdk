@@ -40,7 +40,7 @@ jobs:
     steps:
     # Post a start comment to the PR.
     - name: Add comment to PR
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Started!, Please check https://github.com/${{github.repository}}/commit/${{github.sha}}/checks/${{github.run_id}} for more details."
       with:
@@ -99,7 +99,7 @@ jobs:
     # Post a success comment to the PR.
     - name: Add comment to PR
       if: ${{ success() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun finished successfully!"
       with:
@@ -116,7 +116,7 @@ jobs:
     # Post a failure message when any of the previous steps fail.
     - name: Add failure comment to PR
       if: ${{ failure() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Failed!"
       with:
@@ -154,7 +154,7 @@ jobs:
     steps:
     # Post a start comment to the PR.
     - name: Add comment to PR
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Started!, Please check https://github.com/${{github.repository}}/commit/${{github.sha}}/checks/${{github.run_id}} for more details."
       with:
@@ -213,7 +213,7 @@ jobs:
     # Post a success comment to the PR.
     - name: Add comment to PR
       if: ${{ success() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun finished successfully!"
       with:
@@ -230,7 +230,7 @@ jobs:
     # Post a failure message when any of the previous steps fail.
     - name: Add failure comment to PR
       if: ${{ failure() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Failed!"
       with:
@@ -268,7 +268,7 @@ jobs:
     steps:
     # Post a start comment to the PR.
     - name: Add comment to PR
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Started!, Please check https://github.com/${{github.repository}}/commit/${{github.sha}}/checks/${{github.run_id}} for more details."
       with:
@@ -327,7 +327,7 @@ jobs:
     # Post a success comment to the PR.
     - name: Add comment to PR
       if: ${{ success() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun finished successfully!"
       with:
@@ -344,7 +344,7 @@ jobs:
     # Post a failure message when any of the previous steps fail.
     - name: Add failure comment to PR
       if: ${{ failure() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Failed!"
       with:
@@ -382,7 +382,7 @@ jobs:
     steps:
     # Post a start comment to the PR.
     - name: Add comment to PR
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Started!, Please check https://github.com/${{github.repository}}/commit/${{github.sha}}/checks/${{github.run_id}} for more details."
       with:
@@ -441,7 +441,7 @@ jobs:
     # Post a success comment to the PR.
     - name: Add comment to PR
       if: ${{ success() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun finished successfully!"
       with:
@@ -458,7 +458,7 @@ jobs:
     # Post a failure message when any of the previous steps fail.
     - name: Add failure comment to PR
       if: ${{ failure() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Failed!"
       with:
@@ -496,7 +496,7 @@ jobs:
     steps:
     # Post a start comment to the PR.
     - name: Add comment to PR
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Started!, Please check https://github.com/${{github.repository}}/commit/${{github.sha}}/checks/${{github.run_id}} for more details."
       with:
@@ -555,7 +555,7 @@ jobs:
     # Post a success comment to the PR.
     - name: Add comment to PR
       if: ${{ success() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun finished successfully!"
       with:
@@ -572,7 +572,7 @@ jobs:
     # Post a failure message when any of the previous steps fail.
     - name: Add failure comment to PR
       if: ${{ failure() }}
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       env:
         COMMENT_BODY: "Rerun Failed!"
       with:
