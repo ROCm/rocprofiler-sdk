@@ -516,7 +516,7 @@ Properties
             "pmc": ["FETCH_SIZE", "WRITE_SIZE"],
             "kernel_include_regex": ".*_kernel",
             "kernel_exclude_regex": "multiply",
-            "kernel_iteration_range": "[1-2]","[3-4]"
+            "kernel_iteration_range": "[1-2],[3-4]"
             "output_file": "out",
             "output_format": [
                     "csv",
@@ -534,9 +534,6 @@ Properties
     - pmc:
         - SQ_WAVES
         - GRBM_COUNT
-        - GUI_ACTIVE
-        - 'TCC_HIT[1]'
-        - 'TCC_HIT[2]'
     - pmc:
         - FETCH_SIZE
         - WRITE_SIZE
