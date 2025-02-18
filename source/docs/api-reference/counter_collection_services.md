@@ -414,3 +414,8 @@ In *dispatch counting* mode, counter collection requires serialized execution of
 
 - Use ROCprofiler-SDK's device-wide counter collection mode to collect performance data. You can use tools such as RDC and PAPI to collect information. Note that the device-wide counter collection captures data for all executions on the device and not specific to the kernels.
 
+## ROCTx Stats
+
+The ROCTX markers are standalone markers within the application. Each marker reports a single timestamp, which is recorded as both the start_timestamp and end_timestamp.
+
+As a result, the aggregated statistics, such as TotalDurationNs, maxNs, and minNs, reflect a duration of zero. These values indicate that no execution time is associated with the markers, which is the expected behavior.
