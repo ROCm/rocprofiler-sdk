@@ -712,11 +712,11 @@ read_topology()
                     const char* marketing_name = amdgpu_get_marketing_name(device_handle);
                     if(marketing_name == nullptr)
                     {
-                        ROCP_WARNING << "amdgpu_get_marketing_name returned nullptr";
+                        ROCP_ERROR << "Call to amdgpu_get_marketing_name failed.";
                         marketing_name = "";
                     }
                     agent_info.product_name = common::get_string_entry(marketing_name)->c_str();
-                    agent_info.vendor_name = common::get_string_entry("AMD")->c_str();
+                    agent_info.vendor_name  = common::get_string_entry("AMD")->c_str();
 
                     amdgpu_gpu_info gpu_info = {};
                     if(amdgpu_query_gpu_info(device_handle, &gpu_info) == 0)
