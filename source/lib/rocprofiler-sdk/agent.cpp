@@ -708,8 +708,14 @@ read_topology()
                     agent_info.name =
                         common::get_string_entry(fmt::format("gfx{}{}{:x}", major, minor, step))
                             ->c_str();
-                    agent_info.product_name =
-                        common::get_string_entry(amdgpu_get_marketing_name(device_handle))->c_str();
+
+                    const char* marketing_name = amdgpu_get_marketing_name(device_handle);
+                    if(marketing_name == nullptr)
+                    {
+                        ROCP_WARNING << "amdgpu_get_marketing_name returned nullptr";
+                        marketing_name = "";
+                    }
+                    agent_info.product_name = common::get_string_entry(marketing_name)->c_str();
                     agent_info.vendor_name = common::get_string_entry("AMD")->c_str();
 
                     amdgpu_gpu_info gpu_info = {};
