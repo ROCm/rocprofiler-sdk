@@ -712,7 +712,8 @@ read_topology()
                     const char* marketing_name = amdgpu_get_marketing_name(device_handle);
                     if(marketing_name == nullptr)
                     {
-                        ROCP_ERROR << "amdgpu_get_marketing_name failed. Setting product_name to <unknown>.";
+                        ROCP_ERROR << "amdgpu_get_marketing_name failed. Setting product_name to "
+                                      "<unknown>.";
                         marketing_name = "<unknown>";
                     }
                     agent_info.product_name = common::get_string_entry(marketing_name)->c_str();
