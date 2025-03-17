@@ -31,6 +31,8 @@
  * @brief Example rocprofiler client (tool) written in C
  */
 
+#include <stdio.h>
+
 #include <rocprofiler-sdk/registration.h>
 #include <rocprofiler-sdk/rocprofiler.h>
 

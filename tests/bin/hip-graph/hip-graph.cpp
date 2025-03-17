@@ -25,6 +25,8 @@ THE SOFTWARE.
 #include <iostream>
 #include <mutex>
 
+#include <libgen.h>
+
 // hip header file
 #include <hip/hip_runtime.h>
 
