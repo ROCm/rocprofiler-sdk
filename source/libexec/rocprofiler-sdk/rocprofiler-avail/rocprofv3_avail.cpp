@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <cstring>
+#include <deque>
 #include <fstream>
 #include <mutex>
 #include <unordered_map>

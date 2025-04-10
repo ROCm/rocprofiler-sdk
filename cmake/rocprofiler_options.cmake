@@ -34,6 +34,8 @@ rocprofiler_add_option(
     ROCPROFILER_BUILD_CI "Enable continuous integration default values for options" OFF
     ADVANCED)
 
+rocprofiler_add_option(ROCPROFILER_BUILD_TOOLS "Enable building the tools"
+                       ${ROCPROFILER_BUILD_CI})
 rocprofiler_add_option(ROCPROFILER_BUILD_TESTS "Enable building the tests"
                        ${ROCPROFILER_BUILD_CI})
 rocprofiler_add_option(ROCPROFILER_BUILD_SAMPLES "Enable building the code samples"
