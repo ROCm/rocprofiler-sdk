@@ -64,6 +64,7 @@ Building ROCprofiler-SDK
     git clone https://github.com/ROCm/rocprofiler-sdk.git rocprofiler-sdk-source
     cmake                                         \
         -B rocprofiler-sdk-build                \
+        -D ROCPROFILER_BUILD_TOOLS=ON           \
         -D ROCPROFILER_BUILD_TESTS=ON           \
         -D ROCPROFILER_BUILD_SAMPLES=ON         \
         -D CMAKE_INSTALL_PREFIX=/opt/rocm       \

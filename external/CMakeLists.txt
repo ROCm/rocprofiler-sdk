@@ -167,28 +167,30 @@ if(ROCPROFILER_BUILD_DOCS)
 endif()
 
 # perfetto
-rocprofiler_checkout_git_submodule(
-    RECURSIVE
-    RELATIVE_PATH external/perfetto
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    TEST_FILE meson.build
-    REPO_URL https://android.googlesource.com/platform/external/perfetto external/perfetto
-    REPO_BRANCH "v44.0")
+if(ROCPROFILER_BUILD_TOOLS)
+    rocprofiler_checkout_git_submodule(
+        RECURSIVE
+        RELATIVE_PATH external/perfetto
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        TEST_FILE meson.build
+        REPO_URL https://android.googlesource.com/platform/external/perfetto external/perfetto
+        REPO_BRANCH "v44.0")
 
-add_library(rocprofiler-sdk-perfetto-static-library STATIC)
-target_sources(
-    rocprofiler-sdk-perfetto-static-library
-    PRIVATE ${PROJECT_SOURCE_DIR}/external/perfetto/sdk/perfetto.h
-            ${PROJECT_SOURCE_DIR}/external/perfetto/sdk/perfetto.cc)
-target_include_directories(
-    rocprofiler-sdk-perfetto-static-library SYSTEM
-    INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/external/perfetto/sdk>)
-set_target_properties(
-    rocprofiler-sdk-perfetto-static-library
-    PROPERTIES POSITION_INDEPENDENT_CODE ON OUTPUT_NAME rocprofiler-sdk-perfetto)
-target_link_libraries(
-    rocprofiler-sdk-perfetto
-    INTERFACE $<BUILD_INTERFACE:rocprofiler-sdk-perfetto-static-library>)
+    add_library(rocprofiler-sdk-perfetto-static-library STATIC)
+    target_sources(
+        rocprofiler-sdk-perfetto-static-library
+        PRIVATE ${PROJECT_SOURCE_DIR}/external/perfetto/sdk/perfetto.h
+                ${PROJECT_SOURCE_DIR}/external/perfetto/sdk/perfetto.cc)
+    target_include_directories(
+        rocprofiler-sdk-perfetto-static-library SYSTEM
+        INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/external/perfetto/sdk>)
+    set_target_properties(
+        rocprofiler-sdk-perfetto-static-library
+        PROPERTIES POSITION_INDEPENDENT_CODE ON OUTPUT_NAME rocprofiler-sdk-perfetto)
+    target_link_libraries(
+        rocprofiler-sdk-perfetto
+        INTERFACE $<BUILD_INTERFACE:rocprofiler-sdk-perfetto-static-library>)
+endif()
 
 # ELFIO
 rocprofiler_checkout_git_submodule(
@@ -208,18 +210,22 @@ if(TARGET rocprofiler-sdk-elfio)
 endif()
 
 # OTF2
-add_subdirectory(otf2)
+if(ROCPROFILER_BUILD_TOOLS)
+    add_subdirectory(otf2)
+endif()
 
-rocprofiler_checkout_git_submodule(
-    RECURSIVE
-    RELATIVE_PATH external/json
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    REPO_URL https://github.com/nlohmann/json.git
-    REPO_BRANCH "develop")
+if(ROCPROFILER_BUILD_TOOLS)
+    rocprofiler_checkout_git_submodule(
+        RECURSIVE
+        RELATIVE_PATH external/json
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        REPO_URL https://github.com/nlohmann/json.git
+        REPO_BRANCH "develop")
 
-add_subdirectory(json)
+    add_subdirectory(json)
 
-# target_link_libraries(rocprofiler-sdk-json INTERFACE $<BUILD_INTERFACE:json::json>)
-target_include_directories(
-    rocprofiler-sdk-json SYSTEM
-    INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/external/json/include>)
+    # target_link_libraries(rocprofiler-sdk-json INTERFACE $<BUILD_INTERFACE:json::json>)
+    target_include_directories(
+        rocprofiler-sdk-json SYSTEM
+        INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/external/json/include>)
+endif()

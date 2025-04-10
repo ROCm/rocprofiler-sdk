@@ -46,6 +46,7 @@
 #include <dlfcn.h>  // for dladdr
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <memory>
 #include <vector>
 
