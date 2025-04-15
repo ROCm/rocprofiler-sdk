@@ -23,7 +23,7 @@ This section describes usage of ROCProfiler-SDK PC Sampling API to configure and
 
 ### tool_init() Setup
 
-As the PC sampling service belongs to the group of [buffered services](buffered_services.md), it requires a buffer and a context to be set up in this phase.
+As the PC sampling service belongs to the group of [buffered services](./buffered_services.md), it requires a buffer and a context to be set up in this phase.
 
 ```cpp
 rocprofiler_context_id_t ctx{0};
@@ -39,7 +39,7 @@ ROCPROFILER_CALL(rocprofiler_create_buffer(ctx,
                     "buffer creation failed");
 ```
 
-For more details about the buffer creation, please refer to the [buffered services section](buffered_services.md).
+For more details about the buffer creation, please refer to the [buffered services section](./buffered_services.md).
 
 The PC sampling service is tied to a GPU agent. To extract the list of available agents, one could use the `rocprofiler_query_available_agents` as the following snippet outlines.
 
