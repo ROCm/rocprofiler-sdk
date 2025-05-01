@@ -131,10 +131,10 @@ public:
     DispatchThreadTracer()  = default;
     ~DispatchThreadTracer() = default;
 
-    void start_context();
-    void stop_context();
-    void resource_init();
-    void resource_deinit();
+    static void start_context();
+    void        stop_context();
+    void        resource_init();
+    void        resource_deinit();
 
     void add_agent(rocprofiler_agent_id_t agent, thread_trace_parameter_pack pack)
     {

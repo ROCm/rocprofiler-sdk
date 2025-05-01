@@ -81,88 +81,13 @@ destroy_queue(hsa_queue_t* hsa_queue)
     if(get_queue_controller()) get_queue_controller()->destroy_queue(hsa_queue);
     return HSA_STATUS_SUCCESS;
 }
-
-constexpr rocprofiler_agent_t default_agent =
-    rocprofiler_agent_t{.size = sizeof(rocprofiler_agent_t),
-                        .id   = rocprofiler_agent_id_t{std::numeric_limits<uint64_t>::max()},
-                        .type = ROCPROFILER_AGENT_TYPE_NONE,
-                        .cpu_cores_count            = 0,
-                        .simd_count                 = 0,
-                        .mem_banks_count            = 0,
-                        .caches_count               = 0,
-                        .io_links_count             = 0,
-                        .cpu_core_id_base           = 0,
-                        .simd_id_base               = 0,
-                        .max_waves_per_simd         = 0,
-                        .lds_size_in_kb             = 0,
-                        .gds_size_in_kb             = 0,
-                        .num_gws                    = 0,
-                        .wave_front_size            = 0,
-                        .num_xcc                    = 0,
-                        .cu_count                   = 0,
-                        .array_count                = 0,
-                        .num_shader_banks           = 0,
-                        .simd_arrays_per_engine     = 0,
-                        .cu_per_simd_array          = 0,
-                        .simd_per_cu                = 0,
-                        .max_slots_scratch_cu       = 0,
-                        .gfx_target_version         = 0,
-                        .vendor_id                  = 0,
-                        .device_id                  = 0,
-                        .location_id                = 0,
-                        .domain                     = 0,
-                        .drm_render_minor           = 0,
-                        .num_sdma_engines           = 0,
-                        .num_sdma_xgmi_engines      = 0,
-                        .num_sdma_queues_per_engine = 0,
-                        .num_cp_queues              = 0,
-                        .max_engine_clk_ccompute    = 0,
-                        .max_engine_clk_fcompute    = 0,
-                        .sdma_fw_version            = {},
-                        .fw_version                 = {},
-                        .capability                 = {},
-                        .cu_per_engine              = 0,
-                        .max_waves_per_cu           = 0,
-                        .family_id                  = 0,
-                        .workgroup_max_size         = 0,
-                        .grid_max_size              = 0,
-                        .local_mem_size             = 0,
-                        .hive_id                    = 0,
-                        .gpu_id                     = 0,
-                        .workgroup_max_dim          = {0, 0, 0},
-                        .grid_max_dim               = {0, 0, 0},
-                        .mem_banks                  = nullptr,
-                        .caches                     = nullptr,
-                        .io_links                   = nullptr,
-                        .name                       = nullptr,
-                        .vendor_name                = nullptr,
-                        .product_name               = nullptr,
-                        .model_name                 = nullptr,
-                        .node_id                    = 0,
-                        .logical_node_id            = 0,
-                        .logical_node_type_id       = 0,
-                        .runtime_visibility         = {0, 0, 0, 0, 0},
-                        .uuid                       = {.value = 0}};
 }  // namespace
 
 void
 QueueController::add_queue(hsa_queue_t* id, std::unique_ptr<Queue> queue)
 {
     CHECK(queue);
-    _callback_cache.wlock([&](auto& callbacks) {
-        _queues.wlock([&](auto& map) {
-            const auto agent_id = queue->get_agent().get_rocp_agent()->id.handle;
-            map[id]             = std::move(queue);
-            for(const auto& [cbid, cb_tuple] : callbacks)
-            {
-                auto& [agent, qcb, ccb] = cb_tuple;
-                if(agent.id.handle == default_agent.id.handle || agent.id.handle == agent_id)
-                {
-                    map[id]->register_callback(cbid, qcb, ccb);
-                }
-            }
-        });
-    });
+    _queues.wlock([&](auto& map) { map[id] = std::move(queue); });
 }
 
 void
@@ -182,52 +107,6 @@ QueueController::destroy_queue(hsa_queue_t* id)
     _queues.wlock([&](auto& map) { map.erase(id); });
 
     ROCP_INFO << "queue destroyed";
-}
-
-ClientID
-QueueController::add_callback(std::optional<rocprofiler_agent_t> agent,
-                              Queue::queue_cb_t                  qcb,
-                              Queue::completed_cb_t              ccb)
-{
-    static std::atomic<ClientID> client_id = 1;
-    ClientID                     return_id;
-    _callback_cache.wlock([&](auto& cb_cache) {
-        return_id = client_id;
-        if(agent)
-        {
-            cb_cache[client_id] = std::tuple(*agent, qcb, ccb);
-        }
-        else
-        {
-            cb_cache[client_id] = std::tuple(default_agent, qcb, ccb);
-        }
-        client_id++;
-
-        _queues.wlock([&](auto& map) {
-            for(auto& [_, queue] : map)
-            {
-                if(!agent || queue->get_agent().get_rocp_agent()->id.handle == agent->id.handle)
-                {
-                    queue->register_callback(return_id, qcb, ccb);
-                }
-            }
-        });
-    });
-    return return_id;
-}
-
-void
-QueueController::remove_callback(ClientID id)
-{
-    _callback_cache.wlock([&](auto& cb_cache) {
-        cb_cache.erase(id);
-        _queues.wlock([&](auto& map) {
-            for(auto& [_, queue] : map)
-            {
-                queue->remove_callback(id);
-            }
-        });
-    });
 }
 
 void
@@ -401,17 +280,6 @@ QueueController::iterate_queues(const queue_iterator_cb_t& cb) const
         for(const auto& itr : _queues_v)
         {
             if(itr.second) cb(itr.second.get());
-        }
-    });
-}
-
-void
-QueueController::iterate_callbacks(const callback_iterator_cb_t& cb) const
-{
-    _callback_cache.rlock([&cb](const auto& map) {
-        for(const auto& [cid, tuple] : map)
-        {
-            cb(cid, tuple);
         }
     });
 }

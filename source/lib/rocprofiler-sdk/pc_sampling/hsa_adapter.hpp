@@ -56,8 +56,30 @@ pc_sampling_service_finish_configuration(context::pc_sampling_service* service);
 
 rocprofiler_status_t
 flush_internal_agent_buffers(const PCSAgentSession* agent_session);
+
+void
+pc_sampling_kernel_completion_cb(const rocprofiler_agent_t* rocp_agent,
+                                 rocprofiler::hsa::rocprofiler_packet& /*kernel_pkt*/,
+                                 const rocprofiler::hsa::Queue::queue_info_session_t& session);
 }  // namespace hsa
 }  // namespace pc_sampling
 }  // namespace rocprofiler
 
-#endif
+#else
+namespace rocprofiler
+{
+namespace pc_sampling
+{
+namespace hsa
+{
+void
+pc_sampling_kernel_completion_cb(const rocprofiler_agent_t*,
+                                 rocprofiler::hsa::rocprofiler_packet& /*kernel_pkt*/,
+                                 const rocprofiler::hsa::Queue::queue_info_session_t&)
+{
+    throw std::runtime_error("PC sampling is not enabled. Please enable it in the build.");
+}
+}  // namespace hsa
+}  // namespace pc_sampling
+}  // namespace rocprofiler
+#endif  // ROCPROFILER_SDK_HSA_PC_SAMPLING

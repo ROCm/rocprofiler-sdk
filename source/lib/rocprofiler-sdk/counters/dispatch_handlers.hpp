@@ -36,7 +36,7 @@ using inst_pkt_t = common::container::
 
 hsa::Queue::pkt_and_serialize_t
 queue_cb(const context::context*                                         ctx,
-         const std::shared_ptr<counter_callback_info>&                   info,
+         counter_callback_info&                                          info,
          const hsa::Queue&                                               queue,
          const hsa::rocprofiler_packet&                                  pkt,
          rocprofiler_kernel_id_t                                         kernel_id,
@@ -47,7 +47,6 @@ queue_cb(const context::context*                                         ctx,
 
 void
 completed_cb(const context::context*                            ctx,
-             const std::shared_ptr<counter_callback_info>&      info,
              std::shared_ptr<hsa::Queue::queue_info_session_t>& session,
              inst_pkt_t&                                        pkts,
              kernel_dispatch::profiling_time                    dispatch_time);

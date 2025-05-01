@@ -79,25 +79,6 @@ public:
         bool                       request_serialize{false};
     };
 
-    // Function prototype used to notify consumers that a kernel has been enqueued.
-    // Pair first: An AQL packet can be returned that will be injected into the queue.
-    // Pair second: Boolean flag indicating the dispatch needs to be serialized.
-    using queue_cb_t =
-        std::function<pkt_and_serialize_t(const Queue&,
-                                          const rocprofiler_packet&,
-                                          rocprofiler_kernel_id_t,
-                                          rocprofiler_dispatch_id_t,
-                                          rocprofiler_user_data_t*,
-                                          const queue_info_session_t::external_corr_id_map_t&,
-                                          const context::correlation_id*)>;
-    // Signals the completion of the kernel packet.
-    using completed_cb_t = std::function<void(const Queue&,
-                                              const rocprofiler_packet&,
-                                              std::shared_ptr<Queue::queue_info_session_t>&,
-                                              inst_pkt_t&,
-                                              kernel_dispatch::profiling_time)>;
-    using callback_map_t = std::unordered_map<ClientID, std::pair<queue_cb_t, completed_cb_t>>;
-
     Queue(const AgentCache& agent, CoreApiTable table);
     Queue(const AgentCache&  agent,
           uint32_t           size,
@@ -118,15 +99,9 @@ public:
     void signal_async_handler(const hsa_signal_t& signal, void* data) const;
 
     template <typename FuncT>
-    void signal_callback(FuncT&& func) const;
-
-    template <typename FuncT>
     void lock_queue(FuncT&& func);
 
     virtual rocprofiler_queue_id_t get_id() const;
-
-    // Fast check to see if we have any callbacks we need to notify
-    int get_notifiers() const { return _notifiers; }
 
     // Tracks the number of in flight kernel executions we
     // are waiting on. We cannot destroy Queue until all kernels
@@ -139,9 +114,6 @@ public:
     }
     void sync() const;
 
-    void register_callback(ClientID id, queue_cb_t enqueue_cb, completed_cb_t complete_cb);
-    void remove_callback(ClientID id);
-
     const CoreApiTable&             core_api() const { return _core_api; }
     const AmdExtTable&              ext_api() const { return _ext_api; }
     mutable std::mutex              cv_mutex;
@@ -152,16 +124,14 @@ public:
     void                            set_state(queue_state state);
 
 private:
-    std::atomic<int>                     _notifiers            = {0};
-    std::atomic<int64_t>                 _active_async_packets = {0};
-    CoreApiTable                         _core_api             = {};
-    AmdExtTable                          _ext_api              = {};
-    const AgentCache&                    _agent;
-    common::Synchronized<callback_map_t> _callbacks       = {};
-    hsa_queue_t*                         _intercept_queue = nullptr;
-    queue_state                          _state           = queue_state::normal;
-    std::mutex                           _lock_queue;
-    hsa_signal_t                         _active_kernels = {.handle = 0};
+    std::atomic<int64_t> _active_async_packets = {0};
+    CoreApiTable         _core_api             = {};
+    AmdExtTable          _ext_api              = {};
+    const AgentCache&    _agent;
+    hsa_queue_t*         _intercept_queue = nullptr;
+    queue_state          _state           = queue_state::normal;
+    std::mutex           _lock_queue;
+    hsa_signal_t         _active_kernels = {.handle = 0};
 };
 
 inline rocprofiler_queue_id_t
@@ -169,13 +139,6 @@ Queue::get_id() const
 {
     return {.handle = intercept_queue()->id};
 };
-
-template <typename FuncT>
-inline void
-Queue::signal_callback(FuncT&& func) const
-{
-    _callbacks.rlock([&func](const auto& data) { func(data); });
-}
 
 template <typename FuncT>
 void

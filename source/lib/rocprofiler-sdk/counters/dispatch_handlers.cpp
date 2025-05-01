@@ -48,7 +48,7 @@ namespace counters
  */
 hsa::Queue::pkt_and_serialize_t
 queue_cb(const context::context*                                         ctx,
-         const std::shared_ptr<counter_callback_info>&                   info,
+         counter_callback_info&                                          info,
          const hsa::Queue&                                               queue,
          const hsa::rocprofiler_packet&                                  pkt,
          rocprofiler_kernel_id_t                                         kernel_id,
@@ -57,13 +57,11 @@ queue_cb(const context::context*                                         ctx,
          const hsa::Queue::queue_info_session_t::external_corr_id_map_t& extern_corr_ids,
          const context::correlation_id*                                  correlation_id)
 {
-    CHECK(info && ctx);
-
     // Packet generated when no instrumentation is performed. May contain serialization
     // packets/barrier packets (and can be empty).
     auto no_instrumentation = [&]() {
         auto ret_pkt = std::make_unique<rocprofiler::hsa::EmptyAQLPacket>();
-        info->packet_return_map.wlock([&](auto& data) { data.emplace(ret_pkt.get(), nullptr); });
+        info.packet_return_map.wlock([&](auto& data) { data.emplace(ret_pkt.get(), nullptr); });
         // If we have a counter collection context but it is not enabled, we still might need
         // to add barrier packets to transition from serialized -> unserialized execution. This
         // transition is coordinated by the serializer.
@@ -77,7 +75,7 @@ queue_cb(const context::context*                                         ctx,
     ctx->counter_collection->enabled.rlock(
         [&](const auto& collect_ctx) { is_enabled = collect_ctx; });
 
-    if(!is_enabled || !info->user_cb) return {no_instrumentation(), true};
+    if(!is_enabled || !info.user_cb) return {no_instrumentation(), true};
 
     auto _corr_id_v =
         rocprofiler_async_correlation_id_t{.internal = 0, .external = context::null_user_data};
@@ -85,7 +83,7 @@ queue_cb(const context::context*                                         ctx,
     {
         _corr_id_v.internal = _corr_id->internal;
         if(const auto* external =
-               rocprofiler::common::get_val(extern_corr_ids, info->internal_context))
+               rocprofiler::common::get_val(extern_corr_ids, info.internal_context))
         {
             _corr_id_v.external = *external;
         }
@@ -113,7 +111,7 @@ queue_cb(const context::context*                                         ctx,
         dispatch_data.dispatch_info        = dispatch_info;
     }
 
-    info->user_cb(dispatch_data, &req_profile, user_data, info->callback_args);
+    info.user_cb(dispatch_data, &req_profile, user_data, info.callback_args);
 
     if(req_profile.handle == 0) return {no_instrumentation(), true};
 
@@ -121,7 +119,7 @@ queue_cb(const context::context*                                         ctx,
     CHECK(prof_config);
 
     std::unique_ptr<rocprofiler::hsa::AQLPacket> ret_pkt;
-    auto                                         status = info->get_packet(ret_pkt, prof_config);
+    auto                                         status = info.get_packet(ret_pkt, prof_config);
     CHECK_EQ(status, ROCPROFILER_STATUS_SUCCESS) << rocprofiler_get_status_string(status);
 
     if(!ret_pkt->empty)
@@ -140,17 +138,16 @@ queue_cb(const context::context*                                         ctx,
  */
 void
 completed_cb(const context::context*                            ctx,
-             const std::shared_ptr<counter_callback_info>&      info,
              std::shared_ptr<hsa::Queue::queue_info_session_t>& ptr_session,
              inst_pkt_t&                                        pkts,
              kernel_dispatch::profiling_time                    dispatch_time)
 {
-    CHECK(info && ctx);
-
+    CHECK(ctx);
+    CHECK(ctx->counter_collection);
     std::shared_ptr<counter_config> prof_config;
     // Get the Profile Config
     std::unique_ptr<rocprofiler::hsa::AQLPacket> pkt = nullptr;
-    info->packet_return_map.wlock([&](auto& data) {
+    ctx->counter_collection->ctx_data.packet_return_map.wlock([&](auto& data) {
         for(auto& [aql_pkt, _] : pkts)
         {
             const auto* profile = rocprofiler::common::get_val(data, aql_pkt.get());
@@ -167,7 +164,7 @@ completed_cb(const context::context*                            ctx,
     // We have no profile config, nothing to output.
     if(!pkt || !prof_config) return;
 
-    completed_cb_params_t params{info, ptr_session, dispatch_time, prof_config, std::move(pkt)};
+    completed_cb_params_t params{ctx, ptr_session, dispatch_time, prof_config, std::move(pkt)};
     process_callback_data(std::move(params));
 }
 

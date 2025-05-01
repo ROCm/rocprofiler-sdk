@@ -25,6 +25,8 @@
 #include "lib/common/utility.hpp"
 #include "lib/rocprofiler-sdk/code_object/code_object.hpp"
 #include "lib/rocprofiler-sdk/context/context.hpp"
+#include "lib/rocprofiler-sdk/counters/dispatch_handlers.hpp"
+#include "lib/rocprofiler-sdk/hsa/aql_packet.hpp"
 #include "lib/rocprofiler-sdk/hsa/details/fmt.hpp"
 #include "lib/rocprofiler-sdk/hsa/hsa.hpp"
 #include "lib/rocprofiler-sdk/hsa/queue_controller.hpp"
@@ -99,7 +101,8 @@ bool
 context_filter(const context::context* ctx)
 {
     return (context_filter(ctx, ROCPROFILER_BUFFER_TRACING_KERNEL_DISPATCH) ||
-            context_filter(ctx, ROCPROFILER_CALLBACK_TRACING_KERNEL_DISPATCH));
+            context_filter(ctx, ROCPROFILER_CALLBACK_TRACING_KERNEL_DISPATCH) || ctx->pc_sampler ||
+            ctx->counter_collection || ctx->dispatch_thread_trace);
 }
 
 bool
@@ -124,18 +127,28 @@ AsyncSignalHandler(hsa_signal_value_t /*signal_v*/, void* data)
 
     kernel_dispatch::dispatch_complete(queue_info_session, dispatch_time);
 
-    // Calls our internal callbacks to callers who need to be notified post
-    // kernel execution.
-    queue_info_session.queue.signal_callback([&](const auto& map) {
-        for(const auto& [client_id, cb_pair] : map)
+    for(const auto& [ctx, _] : queue_info_session.tracing_data.external_correlation_ids)
+    {
+        if(ctx->pc_sampler)
         {
-            cb_pair.second(queue_info_session.queue,
-                           queue_info_session.kernel_pkt,
-                           shared_ptr_info,
-                           queue_info_session.inst_pkt,
-                           dispatch_time);
+            pc_sampling::hsa::pc_sampling_kernel_completion_cb(
+                queue_info_session.queue.get_agent().get_rocp_agent(),
+                queue_info_session.kernel_pkt,
+                queue_info_session);
         }
-    });
+
+        if(ctx->counter_collection)
+        {
+            rocprofiler::counters::completed_cb(
+                ctx, shared_ptr_info, queue_info_session.inst_pkt, dispatch_time);
+        }
+
+        if(ctx->dispatch_thread_trace)
+        {
+            ctx->dispatch_thread_trace->post_kernel_call(queue_info_session.inst_pkt,
+                                                         queue_info_session);
+        }
+    }
 
     if(queue_info_session.is_serialized)
     {
@@ -242,8 +255,7 @@ WriteInterceptor(const void* packets,
     auto& queue = *static_cast<Queue*>(data);
 
     // We have no packets or no one who needs to be notified, do nothing.
-    if(pkt_count == 0 ||
-       (queue.get_notifiers() == 0 && context::get_active_contexts(context_filter).empty()))
+    if(pkt_count == 0 || context::get_active_contexts(context_filter).empty())
     {
         writer(packets, pkt_count);
         return;
@@ -259,7 +271,8 @@ WriteInterceptor(const void* packets,
         return (ctx->counter_collection || ctx->pc_sampler || ctx->dispatch_thread_trace);
     };
 
-    for(const auto* itr : context::get_active_contexts(queue_callback_context_filter))
+    auto active_ctxs = context::get_active_contexts(queue_callback_context_filter);
+    for(const auto* itr : active_ctxs)
         tracing_data_v.external_correlation_ids.emplace(itr, tracing::empty_user_data);
 
     const auto* packets_arr         = static_cast<const rocprofiler_packet*>(packets);
@@ -390,20 +403,40 @@ WriteInterceptor(const void* packets,
         bool bRequest_Serialize = false;
 
         // Signal callbacks that a kernel_pkt is being enqueued
-        queue.signal_callback([&](const auto& map) {
-            for(const auto& [client_id, cb_pair] : map)
+        for(const auto& [cur_ctx, _] : tracing_data_v.external_correlation_ids)
+        {
+            auto process_value = [&](auto&& value, auto& value_ctx) {
+                if(value.pkt)
+                {
+                    inst_pkt.emplace_back(
+                        std::make_pair(std::move(value.pkt), value_ctx->client_idx));
+                }
+
+                bRequest_Serialize |= value.request_serialize;
+            };
+
+            if(cur_ctx->counter_collection)
             {
-                auto [packet, bSerial] = cb_pair.first(queue,
-                                                       kernel_pkt,
-                                                       kernel_id,
-                                                       dispatch_id,
-                                                       &user_data,
-                                                       tracing_data_v.external_correlation_ids,
-                                                       corr_id);
-                bRequest_Serialize |= bSerial;
-                if(packet) inst_pkt.push_back(std::make_pair(std::move(packet), client_id));
+                process_value(
+                    rocprofiler::counters::queue_cb(cur_ctx,
+                                                    cur_ctx->counter_collection->ctx_data,
+                                                    queue,
+                                                    kernel_pkt,
+                                                    kernel_id,
+                                                    dispatch_id,
+                                                    &user_data,
+                                                    tracing_data_v.external_correlation_ids,
+                                                    corr_id),
+                    cur_ctx);
             }
-        });
+
+            if(cur_ctx->dispatch_thread_trace)
+            {
+                process_value(cur_ctx->dispatch_thread_trace->pre_kernel_call(
+                                  queue, kernel_id, dispatch_id, &user_data, corr_id),
+                              cur_ctx);
+            }
+        }
 
         bool inserted_before = false;
         if(bRequest_Serialize)
@@ -493,7 +526,7 @@ WriteInterceptor(const void* packets,
                                                      .callback_record  = callback_record,
                                                      .tracing_data     = tracing_data_v,
                                                      .is_serialized    = bRequest_Serialize};
-
+            // TODO: remove this allocation
             auto shared = std::make_shared<Queue::queue_info_session_t>(std::move(info_session));
 
             queue.signal_async_handler(completion_signal,
@@ -632,24 +665,6 @@ Queue::sync() const
         _core_api.hsa_signal_wait_relaxed_fn(
             _active_kernels, HSA_SIGNAL_CONDITION_EQ, 0, UINT64_MAX, HSA_WAIT_STATE_ACTIVE);
     }
-}
-
-void
-Queue::register_callback(ClientID id, queue_cb_t enqueue_cb, completed_cb_t complete_cb)
-{
-    _callbacks.wlock([&](auto& map) {
-        ROCP_FATAL_IF(rocprofiler::common::get_val(map, id)) << "ID already exists!";
-        _notifiers++;
-        map[id] = std::make_pair(enqueue_cb, complete_cb);
-    });
-}
-
-void
-Queue::remove_callback(ClientID id)
-{
-    _callbacks.wlock([&](auto& map) {
-        if(map.erase(id) == 1) _notifiers--;
-    });
 }
 
 queue_state

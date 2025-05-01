@@ -29,6 +29,7 @@
 #include <rocprofiler-sdk/agent.h>
 #include <rocprofiler-sdk/dispatch_counting_service.h>
 #include <rocprofiler-sdk/fwd.h>
+#include <optional>
 
 namespace rocprofiler
 {
@@ -149,20 +150,18 @@ CounterController::configure_dispatch(rocprofiler_context_id_t                  
             std::make_unique<rocprofiler::context::dispatch_counter_collection_service>();
     }
 
-    auto& cb =
-        *ctx.counter_collection->callbacks.emplace_back(std::make_shared<counter_callback_info>());
+    auto& ctx_data = ctx.counter_collection->ctx_data;
 
-    cb.user_cb       = callback;
-    cb.callback_args = callback_args;
-    cb.context       = context_id;
+    ctx_data.user_cb       = callback;
+    ctx_data.callback_args = callback_args;
+    ctx_data.context       = context_id;
     if(buffer.handle != 0)
     {
-        cb.buffer = buffer;
+        ctx_data.buffer = buffer;
     }
-    cb.internal_context     = ctx_p;
-    cb.record_callback      = record_callback;
-    cb.record_callback_args = record_callback_args;
-
+    ctx_data.internal_context     = ctx_p;
+    ctx_data.record_callback      = record_callback;
+    ctx_data.record_callback_args = record_callback_args;
     return ROCPROFILER_STATUS_SUCCESS;
 }
 

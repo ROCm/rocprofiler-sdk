@@ -53,7 +53,8 @@ get_buffer_mut()
 void
 proccess_completed_cb(completed_cb_params_t&& params)
 {
-    auto& info          = params.info;
+    CHECK(params.ctx && params.ctx->counter_collection);
+    auto& info          = params.ctx->counter_collection->ctx_data;
     auto& session       = *params.session;
     auto& dispatch_time = params.dispatch_time;
     auto& prof_config   = params.prof_config;
@@ -70,9 +71,9 @@ proccess_completed_cb(completed_cb_params_t&& params)
     common::container::small_vector<rocprofiler_counter_record_t, 128> out;
     rocprofiler::buffer::instance*                                     buf = nullptr;
 
-    if(info->buffer)
+    if(info.buffer)
     {
-        buf = CHECK_NOTNULL(buffer::get_buffer(info->buffer->handle));
+        buf = CHECK_NOTNULL(buffer::get_buffer(info.buffer->handle));
     }
 
     auto _corr_id_v =
@@ -82,7 +83,7 @@ proccess_completed_cb(completed_cb_params_t&& params)
     {
         _corr_id_v.internal = _corr_id->internal;
         if(const auto* external = rocprofiler::common::get_val(
-               session.tracing_data.external_correlation_ids, info->internal_context))
+               session.tracing_data.external_correlation_ids, info.internal_context))
         {
             _corr_id_v.external = *external;
         }
@@ -132,8 +133,7 @@ proccess_completed_cb(completed_cb_params_t&& params)
         }
         else
         {
-            CHECK(info->record_callback);
-
+            CHECK(info.record_callback);
             auto dispatch_data =
                 common::init_public_api_struct(rocprofiler_dispatch_counting_service_data_t{});
 
@@ -145,11 +145,11 @@ proccess_completed_cb(completed_cb_params_t&& params)
                 dispatch_data.end_timestamp   = dispatch_time.end;
             }
 
-            info->record_callback(dispatch_data,
-                                  out.data(),
-                                  out.size(),
-                                  session.user_data,
-                                  info->record_callback_args);
+            info.record_callback(dispatch_data,
+                                 out.data(),
+                                 out.size(),
+                                 session.user_data,
+                                 info.record_callback_args);
         }
     }
 }

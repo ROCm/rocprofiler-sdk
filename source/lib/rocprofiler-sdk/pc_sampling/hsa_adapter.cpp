@@ -119,27 +119,6 @@ amd_intercept_marker_handler_callback(const struct amd_aql_intercept_marker_s* p
     parser->newDispatch(dispatch_pkt);
 }
 
-/**
- * Callback called by HSA interceptor when the kernel has completed.
- */
-void
-kernel_completion_cb(const rocprofiler_agent_t* rocp_agent,
-                     rocprofiler::hsa::rocprofiler_packet& /*kernel_pkt*/,
-                     const rocprofiler::hsa::Queue::queue_info_session_t& session)
-{
-    // No internal correlation IDs, meaning there is no need to call CID manager.
-    if(!session.correlation_id) return;
-
-    // Check if the PC sampling service is configured on this agent.
-    if(!is_pc_sample_service_configured(rocp_agent->id)) return;
-
-    auto* service = get_configured_pc_sampling_service().load();
-    assert(service);
-    auto* agent_session = service->agent_sessions.at(rocp_agent->id).get();
-    // Mark the correlation ID as completed
-    agent_session->cid_manager->cid_async_activity_completed(session.correlation_id);
-}
-
 void
 data_ready_callback(void*                                client_callback_data,
                     size_t                               data_size,
@@ -189,6 +168,27 @@ data_ready_callback(void*                                client_callback_data,
     });
 }
 }  // namespace
+
+/**
+ * Callback called by HSA interceptor when the kernel has completed.
+ */
+void
+pc_sampling_kernel_completion_cb(const rocprofiler_agent_t* rocp_agent,
+                                 rocprofiler::hsa::rocprofiler_packet& /*kernel_pkt*/,
+                                 const rocprofiler::hsa::Queue::queue_info_session_t& session)
+{
+    // No internal correlation IDs, meaning there is no need to call CID manager.
+    if(!session.correlation_id) return;
+
+    // Check if the PC sampling service is configured on this agent.
+    if(!is_pc_sample_service_configured(rocp_agent->id)) return;
+
+    auto* service = get_configured_pc_sampling_service().load();
+    assert(service);
+    auto* agent_session = service->agent_sessions.at(rocp_agent->id).get();
+    // Mark the correlation ID as completed
+    agent_session->cid_manager->cid_async_activity_completed(session.correlation_id);
+}
 
 rocprofiler::hsa::rocprofiler_packet
 generate_marker_packet_for_kernel(
@@ -339,28 +339,6 @@ pc_sampling_service_finish_configuration(context::pc_sampling_service* service)
             std::runtime_error("PCS parser does not accept buffer");
         }
     }
-
-    // Register callbacks for the HSA's queue interceptor.
-    // TODO: should we store callback ID in the service?
-    rocprofiler::hsa::get_queue_controller()->add_callback(
-        std::nullopt,
-        [](const rocprofiler::hsa::Queue&,
-           const rocprofiler::hsa::rocprofiler_packet&,
-           rocprofiler_kernel_id_t /*kernel_id*/,
-           rocprofiler_dispatch_id_t /*dispatch_id*/,
-           rocprofiler_user_data_t*,
-           const rocprofiler::hsa::Queue::queue_info_session_t::external_corr_id_map_t&,
-           const context::correlation_id*) {
-            return rocprofiler::hsa::Queue::pkt_and_serialize_t{};
-        },
-        // Completion CB
-        [](const rocprofiler::hsa::Queue&                                  q,
-           rocprofiler::hsa::rocprofiler_packet                            kern_pkt,
-           std::shared_ptr<rocprofiler::hsa::Queue::queue_info_session_t>& session,
-           rocprofiler::hsa::inst_pkt_t&,
-           kernel_dispatch::profiling_time) {
-            kernel_completion_cb(q.get_agent().get_rocp_agent(), kern_pkt, *session);
-        });
 }
 
 rocprofiler_status_t

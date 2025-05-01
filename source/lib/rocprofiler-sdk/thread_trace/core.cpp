@@ -384,35 +384,7 @@ DispatchThreadTracer::post_kernel_call(DispatchThreadTracer::inst_pkt_t&       a
 void
 DispatchThreadTracer::start_context()
 {
-    using corr_id_map_t = hsa::Queue::queue_info_session_t::external_corr_id_map_t;
-
     CHECK_NOTNULL(hsa::get_queue_controller())->enable_serialization();
-
-    // Only one thread should be attempting to enable/disable this context
-    client.wlock([&](auto& client_id) {
-        if(client_id) return;
-
-        client_id =
-            CHECK_NOTNULL(hsa::get_queue_controller())
-                ->add_callback(
-                    std::nullopt,
-                    [=](const hsa::Queue& q,
-                        const hsa::rocprofiler_packet& /* kern_pkt */,
-                        rocprofiler_kernel_id_t   kernel_id,
-                        rocprofiler_dispatch_id_t dispatch_id,
-                        rocprofiler_user_data_t*  user_data,
-                        const corr_id_map_t& /* extern_corr_ids */,
-                        const context::correlation_id* corr_id) {
-                        return this->pre_kernel_call(q, kernel_id, dispatch_id, user_data, corr_id);
-                    },
-                    [=](const hsa::Queue& /* q */,
-                        hsa::rocprofiler_packet /* kern_pkt */,
-                        std::shared_ptr<hsa::Queue::queue_info_session_t>& session,
-                        inst_pkt_t&                                        aql,
-                        kernel_dispatch::profiling_time) {
-                        this->post_kernel_call(aql, *session);
-                    });
-    });
 }
 
 void
@@ -420,14 +392,6 @@ DispatchThreadTracer::stop_context()  // NOLINT(readability-convert-member-funct
 {
     auto* controller = hsa::get_queue_controller();
     if(!controller) return;
-
-    client.wlock([&](auto& client_id) {
-        if(!client_id) return;
-
-        // Remove our callbacks from HSA's queue controller
-        controller->remove_callback(*client_id);
-        client_id = std::nullopt;
-    });
 
     controller->disable_serialization();
 }

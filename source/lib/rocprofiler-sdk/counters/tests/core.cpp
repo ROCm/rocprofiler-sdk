@@ -407,10 +407,10 @@ TEST(core, check_callbacks)
             auto profile = counters::get_counter_config(expected.id);
             ASSERT_TRUE(profile);
 
-            std::shared_ptr<counters::counter_callback_info> cb_info =
-                std::make_shared<counters::counter_callback_info>();
-            cb_info->user_cb       = user_dispatch_cb;
-            cb_info->callback_args = static_cast<void*>(&expected);
+            auto& cb_info = ctx.counter_collection->ctx_data;
+
+            cb_info.user_cb       = user_dispatch_cb;
+            cb_info.callback_args = static_cast<void*>(&expected);
 
             context::correlation_id corr_id;
             corr_id.internal = count++;
@@ -460,7 +460,7 @@ TEST(core, check_callbacks)
                                                        nullptr,
                                                        &opt_buff_id),
                              "Could not create buffer");
-            cb_info->buffer = opt_buff_id;
+            cb_info.buffer = opt_buff_id;
 
             auto _sess           = hsa::Queue::queue_info_session_t{.queue = fq};
             _sess.correlation_id = &corr_id;
@@ -470,7 +470,7 @@ TEST(core, check_callbacks)
             counters::inst_pkt_t pkts;
             pkts.emplace_back(
                 std::make_pair(std::move(ret_pkt.pkt), static_cast<counters::ClientID>(0)));
-            completed_cb(&ctx, cb_info, sess, pkts, kernel_dispatch::profiling_time{});
+            completed_cb(&ctx, sess, pkts, kernel_dispatch::profiling_time{});
             rocprofiler_flush_buffer(opt_buff_id);
             rocprofiler_destroy_buffer(opt_buff_id);
         }
@@ -551,24 +551,14 @@ TEST(core, start_stop_buffered_ctx)
     auto& ctx = *ctx_p;
 
     ASSERT_TRUE(ctx.counter_collection);
-    ASSERT_EQ(ctx.counter_collection->callbacks.size(), 1);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->user_cb, null_dispatch_callback);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->callback_args, (void*) 0x12345);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->context.handle, get_client_ctx().handle);
-    ASSERT_TRUE(ctx.counter_collection->callbacks.at(0)->buffer);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->buffer->handle, opt_buff_id.handle);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.user_cb, null_dispatch_callback);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.callback_args, (void*) 0x12345);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.context.handle, get_client_ctx().handle);
+    ASSERT_TRUE(ctx.counter_collection->ctx_data.buffer);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.buffer->handle, opt_buff_id.handle);
 
     bool found = false;
     ctx.counter_collection->enabled.rlock([&](const auto& data) { found = data; });
-    EXPECT_TRUE(found);
-
-    found = false;
-    hsa::get_queue_controller()->iterate_callbacks([&](auto cid, const auto&) {
-        if(cid == ctx.counter_collection->callbacks.at(0)->queue_id)
-        {
-            found = true;
-        }
-    });
     EXPECT_TRUE(found);
 
     /**
@@ -616,24 +606,14 @@ TEST(core, start_stop_callback_ctx)
     auto& ctx = *ctx_p;
 
     ASSERT_TRUE(ctx.counter_collection);
-    ASSERT_EQ(ctx.counter_collection->callbacks.size(), 1);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->user_cb, null_dispatch_callback);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->callback_args, (void*) 0x12345);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->record_callback, null_record_callback);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->record_callback_args, (void*) 0x54321);
-    EXPECT_EQ(ctx.counter_collection->callbacks.at(0)->context.handle, get_client_ctx().handle);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.user_cb, null_dispatch_callback);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.callback_args, (void*) 0x12345);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.record_callback, null_record_callback);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.record_callback_args, (void*) 0x54321);
+    EXPECT_EQ(ctx.counter_collection->ctx_data.context.handle, get_client_ctx().handle);
 
     bool found = false;
     ctx.counter_collection->enabled.rlock([&](const auto& data) { found = data; });
-    EXPECT_TRUE(found);
-
-    found = false;
-    hsa::get_queue_controller()->iterate_callbacks([&](auto cid, const auto&) {
-        if(cid == ctx.counter_collection->callbacks.at(0)->queue_id)
-        {
-            found = true;
-        }
-    });
     EXPECT_TRUE(found);
 
     /**

@@ -160,40 +160,6 @@ start_context(const context::context* ctx)
     if(!already_enabled)
     {
         callback_thread_start();
-
-        for(auto& cb : ctx->counter_collection->callbacks)
-        {
-            // Insert our callbacks into HSA Interceptor. This
-            // turns on counter instrumentation.
-            if(cb->queue_id != rocprofiler::hsa::ClientID{-1}) continue;
-            cb->queue_id = controller->add_callback(
-                std::nullopt,
-                [=](const hsa::Queue&                                               q,
-                    const hsa::rocprofiler_packet&                                  kern_pkt,
-                    rocprofiler_kernel_id_t                                         kernel_id,
-                    rocprofiler_dispatch_id_t                                       dispatch_id,
-                    rocprofiler_user_data_t*                                        user_data,
-                    const hsa::Queue::queue_info_session_t::external_corr_id_map_t& extern_corr_ids,
-                    const context::correlation_id* correlation_id) {
-                    return queue_cb(ctx,
-                                    cb,
-                                    q,
-                                    kern_pkt,
-                                    kernel_id,
-                                    dispatch_id,
-                                    user_data,
-                                    extern_corr_ids,
-                                    correlation_id);
-                },
-                // Completion CB
-                [=](const hsa::Queue& /* q */,
-                    hsa::rocprofiler_packet /* kern_pkt */,
-                    std::shared_ptr<hsa::Queue::queue_info_session_t>& session,
-                    inst_pkt_t&                                        aql,
-                    kernel_dispatch::profiling_time                    dispatch_time) {
-                    completed_cb(ctx, cb, session, aql, dispatch_time);
-                });
-        }
     }
 }
 
