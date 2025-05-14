@@ -54,6 +54,8 @@ set(TOOL_OUTPUT_SOURCES
     tmp_file_buffer.cpp
     tmp_file.cpp)
 
+find_library(Babeltrace2 babeltrace2 REQUIRED HINTS "/usr/lib/x86_64-linux-gnu")
+
 add_library(rocprofiler-sdk-output-library STATIC)
 add_library(rocprofiler-sdk::rocprofiler-sdk-output-library ALIAS
             rocprofiler-sdk-output-library)
@@ -72,7 +74,8 @@ target_link_libraries(
             rocprofiler-sdk::rocprofiler-sdk-amd-comgr
             rocprofiler-sdk::rocprofiler-sdk-dw
             rocprofiler-sdk::rocprofiler-sdk-elf
-            rocprofiler-sdk::rocprofiler-sdk-sqlite3)
+            rocprofiler-sdk::rocprofiler-sdk-sqlite3
+            babeltrace2)
 
 target_compile_definitions(rocprofiler-sdk-output-library
                            PRIVATE PROJECT_BINARY_DIR="${PROJECT_BINARY_DIR}")

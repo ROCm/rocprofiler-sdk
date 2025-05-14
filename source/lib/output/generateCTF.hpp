@@ -20,6 +20,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <babeltrace2/babeltrace.h>
+#include <babeltrace2/graph/component-class.h>
+#include <babeltrace2/graph/component.h>
+#include <babeltrace2/graph/port.h>
+
 #pragma once
 
 #include "agent_info.hpp"
@@ -33,8 +38,32 @@ namespace rocprofiler
 {
 namespace tool
 {
+struct ctf_output
+{
+    ctf_output(const output_config& cfg);
+    ~ctf_output();
+
+    template <typename record_type>
+    void write_event(const record_type& event);
+    void close();
+
+private:
+    bt_graph*            graph;
+    bt_component*        ctf_writer_comp;
+    bt_message_iterator* msg_iter;
+    bt_event_class*      event_class;
+
+    // Helper: Tag dispatch for each record type
+    template <typename T> struct ctf_event_tag {};
+};
+
+ctf_output open_ctf_stream(const output_config& cfg);
+
+void close_ctf_stream(ctf_output& ctf_out);
+
 void
-write_ctf(const output_config&                                               cfg,
+write_ctf(ctf_output&                                                        ctf_out,
+          const output_config&                                               cfg,
           const metadata&                                                    tool_metadata,
           uint64_t                                                           pid,
           const std::vector<agent_info>&                                     agent_data,
