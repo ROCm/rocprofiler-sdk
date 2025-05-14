@@ -46,6 +46,7 @@
 #include "lib/output/csv_output_file.hpp"
 #include "lib/output/domain_type.hpp"
 #include "lib/output/generateCSV.hpp"
+#include "lib/output/generateCTF.hpp"
 #include "lib/output/generateJSON.hpp"
 #include "lib/output/generateOTF2.hpp"
 #include "lib/output/generatePerfetto.hpp"

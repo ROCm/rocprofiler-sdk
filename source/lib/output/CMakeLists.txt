@@ -18,6 +18,7 @@ set(TOOL_OUTPUT_HEADERS
     generatePerfetto.hpp
     generateStats.hpp
     generateRocpd.hpp
+    generateCTF.hpp
     generator.hpp
     kernel_symbol_info.hpp
     host_symbol_info.hpp
@@ -43,6 +44,7 @@ set(TOOL_OUTPUT_SOURCES
     generatePerfetto.cpp
     generateStats.cpp
     generateRocpd.cpp
+    generateCTF.cpp
     metadata.cpp
     node_info.cpp
     output_config.cpp

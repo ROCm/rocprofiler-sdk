@@ -71,6 +71,7 @@ struct output_config
     bool                     summary_output              = false;
     bool                     kernel_rename               = false;
     bool                     group_by_queue              = false;
+    bool                     ctf_output                  = false;
     uint64_t                 stats_summary_unit_value    = 1;
     size_t                   perfetto_shmem_size_hint    = defaults::perfetto_shmem_size_hint_kb;
     size_t                   perfetto_buffer_size        = defaults::perfetto_buffer_size_kb;
