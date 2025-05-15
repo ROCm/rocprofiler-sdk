@@ -38,28 +38,46 @@ namespace rocprofiler
 {
 namespace tool
 {
+
+    enum record_type_t {
+        HIP_API_EXT = 0,
+
+    };
 struct ctf_output
 {
     ctf_output(const output_config& cfg);
     ~ctf_output();
 
-    template <typename record_type>
-    void write_event(const record_type& event);
+    void write_event_source_component(const char* source_name,
+                                      bt_component_class_initialize_method_status (*init_method)(
+                                          bt_self_component_source*,
+                                          bt_self_component_source_configuration*,
+                                          const bt_value*,
+                                          void*),
+                                      void (*finalize_method)(bt_self_component_source*),
+                                      bt_message_iterator_class_next_method_status (*next_method)(
+                                          bt_self_message_iterator* self_message_iterator,
+                                          bt_message_array_const    msgs,
+                                          uint64_t                  capacity,
+                                          uint64_t*                 count), void* data);
     void close();
+
+    bool hip_api_ext_initialized{false};
+
+    std::deque<rocprofiler_buffer_tracing_hip_api_ext_record_t>* hip_api_data = nullptr;
 
 private:
     bt_graph*            graph;
     bt_component*        ctf_writer_comp;
     bt_message_iterator* msg_iter;
     bt_event_class*      event_class;
-
-    // Helper: Tag dispatch for each record type
-    template <typename T> struct ctf_event_tag {};
 };
 
-ctf_output open_ctf_stream(const output_config& cfg);
+ctf_output
+open_ctf_stream(const output_config& cfg);
 
-void close_ctf_stream(ctf_output& ctf_out);
+void
+close_ctf_stream(ctf_output& ctf_out);
 
 void
 write_ctf(ctf_output&                                                        ctf_out,

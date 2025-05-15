@@ -25,6 +25,8 @@
 #include "statistics.hpp"
 #include "timestamps.hpp"
 
+#include "ctf/hip_api_ext.hpp"
+
 #include "lib/common/filesystem.hpp"
 #include "lib/common/string_entry.hpp"
 #include "lib/common/utility.hpp"
@@ -131,189 +133,60 @@ ctf_output::ctf_output(const output_config& cfg)
     }
 }
 
-ctf_output::~ctf_output()
-{
-    close();
-}
+ctf_output::~ctf_output() { close(); }
 
-void ctf_output::close() {
+void
+ctf_output::close()
+{
     // Cleanup
     bt_graph_put_ref(graph);
 }
 
-template <typename record_type>
-void ctf_output::write_event(const record_type& event) {
-    write_event_impl(event, ctf_event_tag<record_type>{});
-}
-
-// ---- HIP API EXT ----
-void ctf_output::write_event_impl(
-    const rocprofiler_buffer_tracing_hip_api_ext_record_t& event,
-    ctf_event_tag<rocprofiler_buffer_tracing_hip_api_ext_record_t>)
+void
+ctf_output::write_event_source_component(
+    const char* source_name,
+    bt_component_class_initialize_method_status (*init_method)(
+        bt_self_component_source*,
+        bt_self_component_source_configuration*,
+        const bt_value*,
+        void*),
+    void (*finalize_method)(bt_self_component_source*),
+    bt_message_iterator_class_next_method_status (*next_method)(
+        bt_self_message_iterator* self_message_iterator,
+        bt_message_array_const    msgs,
+        uint64_t                  capacity,
+        uint64_t*                 count),
+    void* data)
 {
-    // Example: Extract fields
-    auto kind = event.kind;
-    auto op   = event.operation;
-    auto corr = event.correlation_id;
-    auto start = event.start_timestamp;
-    auto end   = event.end_timestamp;
-    auto tid   = event.thread_id;
-    // event.args, event.retval
+    bt_message_iterator_class* msg_iter_cls = bt_message_iterator_class_create(next_method);
 
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
+    // 2. Optionally set msg_iter init/finalize
+    // bt_message_iterator_class_set_initialize_method(msg_iter_cls, hip_api_source_msg_iter_init);
+    // bt_message_iterator_class_set_finalize_method(msg_iter_cls,
+    // hip_api_source_msg_iter_finalize);
 
-// ---- HSA API ----
-void ctf_output::write_event_impl(
-    const rocprofiler_buffer_tracing_hsa_api_record_t& event,
-    ctf_event_tag<rocprofiler_buffer_tracing_hsa_api_record_t>)
-{
-    auto kind = event.kind;
-    auto op   = event.operation;
-    auto corr = event.correlation_id;
-    auto start = event.start_timestamp;
-    auto end   = event.end_timestamp;
-    auto tid   = event.thread_id;
+    // 3. Create source component class
+    bt_component_class_source* src_class =
+        bt_component_class_source_create(source_name, msg_iter_cls);
 
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
+    // 4. Set component class init/finalize
+    bt_component_class_source_set_initialize_method(src_class, init_method);
+    bt_component_class_source_set_finalize_method(src_class, finalize_method);
 
-// ---- Kernel Dispatch ----
-void ctf_output::write_event_impl(
-    const tool_buffer_tracing_kernel_dispatch_ext_record_t& event,
-    ctf_event_tag<tool_buffer_tracing_kernel_dispatch_ext_record_t>)
-{
-    auto& base = static_cast<const rocprofiler_buffer_tracing_kernel_dispatch_record_t&>(event);
-    auto kind = base.kind;
-    auto op   = base.operation;
-    auto corr = base.correlation_id;
-    auto tid  = base.thread_id;
-    auto start = base.start_timestamp;
-    auto end   = base.end_timestamp;
-    auto dispatch_info = base.dispatch_info;
-    auto stream_id = event.stream_id;
-    auto kernel_rename_val = event.kernel_rename_val;
+    // 5. Add the source component to the graph
+    const bt_component_source* src_comp = nullptr;
+    bt_graph_add_source_component_with_initialize_method_data(
+        graph, src_class, source_name, NULL, data, BT_LOGGING_LEVEL_NONE, &src_comp);
 
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
+    bt_port_output* src_out_port =
+        (bt_port_output*) bt_self_component_source_borrow_output_port_by_index(
+            (bt_self_component_source*) src_comp, 0);
+    bt_port_input* sink_in_port =
+        (bt_port_input*) bt_self_component_sink_borrow_input_port_by_index(
+            (bt_self_component_sink*) ctf_writer_comp, 0);
+    bt_graph_connect_ports(graph, src_out_port, sink_in_port, NULL);
 
-// ---- Memory Copy ----
-void ctf_output::write_event_impl(
-    const tool_buffer_tracing_memory_copy_ext_record_t& event,
-    ctf_event_tag<tool_buffer_tracing_memory_copy_ext_record_t>)
-{
-    auto& base = static_cast<const rocprofiler_buffer_tracing_memory_copy_record_t&>(event);
-    auto kind = base.kind;
-    auto op   = base.operation;
-    auto corr = base.correlation_id;
-    auto tid  = base.thread_id;
-    auto start = base.start_timestamp;
-    auto end   = base.end_timestamp;
-    auto dst_agent_id = base.dst_agent_id;
-    auto src_agent_id = base.src_agent_id;
-    auto bytes = base.bytes;
-    auto dst_addr = base.dst_address;
-    auto src_addr = base.src_address;
-    auto stream_id = event.stream_id;
-
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
-
-// ---- Marker API ----
-void ctf_output::write_event_impl(
-    const rocprofiler_buffer_tracing_marker_api_record_t& event,
-    ctf_event_tag<rocprofiler_buffer_tracing_marker_api_record_t>)
-{
-    auto kind = event.kind;
-    auto op   = event.operation;
-    auto corr = event.correlation_id;
-    auto start = event.start_timestamp;
-    auto end   = event.end_timestamp;
-    auto tid   = event.thread_id;
-
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
-
-// ---- Scratch Memory ----
-void ctf_output::write_event_impl(
-    const rocprofiler_buffer_tracing_scratch_memory_record_t& event,
-    ctf_event_tag<rocprofiler_buffer_tracing_scratch_memory_record_t>)
-{
-    auto kind = event.kind;
-    auto op   = event.operation;
-    auto corr = event.correlation_id;
-    auto agent_id = event.agent_id;
-    auto queue_id = event.queue_id;
-    auto tid = event.thread_id;
-    auto start = event.start_timestamp;
-    auto end = event.end_timestamp;
-    auto flags = event.flags;
-
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
-
-// ---- RCCL API ----
-void ctf_output::write_event_impl(
-    const rocprofiler_buffer_tracing_rccl_api_record_t& event,
-    ctf_event_tag<rocprofiler_buffer_tracing_rccl_api_record_t>)
-{
-    auto kind = event.kind;
-    auto op   = event.operation;
-    auto corr = event.correlation_id;
-    auto start = event.start_timestamp;
-    auto end   = event.end_timestamp;
-    auto tid   = event.thread_id;
-
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
-
-// ---- Memory Allocation ----
-void ctf_output::write_event_impl(
-    const rocprofiler_buffer_tracing_memory_allocation_record_t& event,
-    ctf_event_tag<rocprofiler_buffer_tracing_memory_allocation_record_t>)
-{
-    auto kind = event.kind;
-    auto op   = event.operation;
-    auto corr = event.correlation_id;
-    auto tid  = event.thread_id;
-    auto start = event.start_timestamp;
-    auto end   = event.end_timestamp;
-    auto agent_id = event.agent_id;
-    auto address = event.address;
-    auto alloc_size = event.allocation_size;
-
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
-
-// ---- rocDecode API EXT ----
-void ctf_output::write_event_impl(
-    const rocprofiler_buffer_tracing_rocdecode_api_ext_record_t& event,
-    ctf_event_tag<rocprofiler_buffer_tracing_rocdecode_api_ext_record_t>)
-{
-    auto kind = event.kind;
-    auto op   = event.operation;
-    auto corr = event.correlation_id;
-    auto start = event.start_timestamp;
-    auto end   = event.end_timestamp;
-    auto tid   = event.thread_id;
-    // event.args, event.retval
-
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
-}
-
-// ---- rocJPEG API ----
-void ctf_output::write_event_impl(
-    const rocprofiler_buffer_tracing_rocjpeg_api_record_t& event,
-    ctf_event_tag<rocprofiler_buffer_tracing_rocjpeg_api_record_t>)
-{
-    auto kind = event.kind;
-    auto op   = event.operation;
-    auto corr = event.correlation_id;
-    auto start = event.start_timestamp;
-    auto end   = event.end_timestamp;
-    auto tid   = event.thread_id;
-
-    // TODO: Use Babeltrace 2 API to create a message/event and set these fields
+    bt_graph_run(graph);
 }
 
 void
@@ -331,21 +204,25 @@ setup(const output_config& cfg)
     ROCP_ERROR << "Opened result file: " << _filename;
 }
 
-ctf_output open_ctf_stream(const output_config& cfg) {
+ctf_output
+open_ctf_stream(const output_config& cfg)
+{
     setup(cfg);
     return ctf_output{cfg};
 }
 
-void close_ctf_stream(ctf_output& ctf_out) {
+void
+close_ctf_stream(ctf_output& ctf_out)
+{
     ctf_out.close();
 }
 
 void
-write_ctf(ctf_output&                                                        ctf_out,
-          const output_config&                                               cfg,
-          const metadata&                                                    tool_metadata,
-          uint64_t                                                           pid,
-          const std::vector<agent_info>&                                     agent_data,
+write_ctf(ctf_output& ctf_out,
+          const output_config& /*cfg*/,
+          const metadata& /*tool_metadata*/,
+          uint64_t /*pid*/,
+          const std::vector<agent_info>& /*agent_data*/,
           std::deque<rocprofiler_buffer_tracing_hip_api_ext_record_t>*       hip_api_data,
           std::deque<rocprofiler_buffer_tracing_hsa_api_record_t>*           hsa_api_data,
           std::deque<tool_buffer_tracing_kernel_dispatch_ext_record_t>*      kernel_dispatch_data,
@@ -358,55 +235,96 @@ write_ctf(ctf_output&                                                        ctf
           std::deque<rocprofiler_buffer_tracing_rocjpeg_api_record_t>*       rocjpeg_api_data)
 {
     // Loop over each deque and call write_event for each record
-    if (hip_api_data) {
-        for (const auto& rec : *hip_api_data) {
-            ctf_out.write_event(rec);
+    if(hip_api_data)
+    {
+        if(!ctf_out.hip_api_ext_initialized)
+        {
+            ctf_out.hip_api_data =
+                new std::deque<rocprofiler_buffer_tracing_hip_api_ext_record_t>();
+            ctf_out.write_event_source_component("hip_api_source",
+                                                 hip_api_source_init,
+                                                 hip_api_source_finalize,
+                                                 hip_api_source_next,
+                                                 (void*) ctf_out.hip_api_data);
+            ctf_out.hip_api_ext_initialized = true;
+        }
+
+        while(!hip_api_data->empty()) {
+            ctf_out.hip_api_data->push_front(hip_api_data->back());
+            hip_api_data->pop_back();
         }
     }
-    if (hsa_api_data) {
-        for (const auto& rec : *hsa_api_data) {
-            ctf_out.write_event(rec);
-        }
+    if(hsa_api_data)
+    {
+        // ctf_out.write_event_source_component("hsa_api_source",
+        //                              hsa_api_source_init,
+        //                              hsa_api_source_finalize,
+        //                              hsa_api_source_next,
+        //                              hsa_api_data);
     }
-    if (kernel_dispatch_data) {
-        for (const auto& rec : *kernel_dispatch_data) {
-            ctf_out.write_event(rec);
-        }
+    if(kernel_dispatch_data)
+    {
+        // ctf_out.write_event_source_component("kernel_dispatch_source",
+        //                              kernel_dispatch_source_init,
+        //                              kernel_dispatch_source_finalize,
+        //                              kernel_dispatch_source_next,
+        //                              kernel_dispatch_data);
     }
-    if (memory_copy_data) {
-        for (const auto& rec : *memory_copy_data) {
-            ctf_out.write_event(rec);
-        }
+    if(memory_copy_data)
+    {
+        // ctf_out.write_event_source_component("memory_copy_source",
+        //                              memory_copy_source_init,
+        //                              memory_copy_source_finalize,
+        //                              memory_copy_source_next,
+        //                              memory_copy_data);
     }
-    if (marker_api_data) {
-        for (const auto& rec : *marker_api_data) {
-            ctf_out.write_event(rec);
-        }
+    if(marker_api_data)
+    {
+        // ctf_out.write_event_source_component("marker_api_source",
+        //                              marker_api_source_init,
+        //                              marker_api_source_finalize,
+        //                              marker_api_source_next,
+        //                              marker_api_data);
     }
-    if (scratch_memory_data) {
-        for (const auto& rec : *scratch_memory_data) {
-            ctf_out.write_event(rec);
-        }
+    if(scratch_memory_data)
+    {
+        // ctf_out.write_event_source_component("scratch_memory_source",
+        //                              scratch_memory_source_init,
+        //                              scratch_memory_source_finalize,
+        //                              scratch_memory_source_next,
+        //                              scratch_memory_data);
     }
-    if (rccl_api_data) {
-        for (const auto& rec : *rccl_api_data) {
-            ctf_out.write_event(rec);
-        }
+    if(rccl_api_data)
+    {
+        // ctf_out.write_event_source_component("rccl_api_source",
+        //                              rccl_api_source_init,
+        //                              rccl_api_source_finalize,
+        //                              rccl_api_source_next,
+        //                              rccl_api_data);
     }
-    if (memory_allocation_data) {
-        for (const auto& rec : *memory_allocation_data) {
-            ctf_out.write_event(rec);
-        }
+    if(memory_allocation_data)
+    {
+        // ctf_out.write_event_source_component("memory_allocation_source",
+        //                              memory_allocation_source_init,
+        //                              memory_allocation_source_finalize,
+        //                              memory_allocation_source_next,
+        //                              memory_allocation_data);
     }
-    if (rocdecode_api_data) {
-        for (const auto& rec : *rocdecode_api_data) {
-            ctf_out.write_event(rec);
-        }
+    if(rocdecode_api_data)
+    {
+        // ctf_out.write_event_source_component("rocdecode_api_source",
+        //                              rocdecode_api_source_init,
+        //                              rocdecode_api_source_finalize,
+        //                              rocdecode_api_source_next,
+        //                              rocdecode_api_data);
     }
-    if (rocjpeg_api_data) {
-        for (const auto& rec : *rocjpeg_api_data) {
-            ctf_out.write_event(rec);
-        }
+    if(rocjpeg_api_data)
+    {
+        // ctf_out.write_event_source_component("rocjpeg_api_source",
+        //                              rocjpeg_api_source_init,
+        //                              rocjpeg_api_source_finalize,
+        //                              rocjpeg_api_source_next,
+        //                              rocjpeg_api_data);
     }
 }
 
