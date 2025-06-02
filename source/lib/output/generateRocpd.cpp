@@ -808,9 +808,9 @@ write_rocpd(
             }
         });
 
-        auto command = fmt::format(
+        auto command = sanitize_sql_string(fmt::format(
             "{}",
-            fmt::join(tool_metadata.command_line.begin(), tool_metadata.command_line.end(), " "));
+            fmt::join(tool_metadata.command_line.begin(), tool_metadata.command_line.end(), " ")));
 
         auto stmt = get_insert_statement("rocpd_info_process{{uuid}}",
                                          {
@@ -1305,6 +1305,7 @@ write_rocpd(
                 for(const auto& arg_info : args)
                 {
                     auto demangled_type = common::cxx_demangle(arg_info.arg_type);
+                    auto arg_value = sanitize_sql_string(arg_info.arg_value);
 
                     auto args_stmt =
                         get_insert_statement("rocpd_arg{{uuid}}",
@@ -1313,7 +1314,7 @@ write_rocpd(
                                                  insert_value("position", arg_info.arg_number),
                                                  insert_value("type", demangled_type),
                                                  insert_value("name", arg_info.arg_name),
-                                                 insert_value("value", arg_info.arg_value),
+                                                 insert_value("value", arg_value),
                                              });
 
                     execute_raw_sql_statements(conn, args_stmt);
