@@ -46,8 +46,8 @@
 #include "lib/output/csv_output_file.hpp"
 #include "lib/output/domain_type.hpp"
 #include "lib/output/generateCSV.hpp"
-#include "lib/output/generateCTF.hpp"
 #include "lib/output/generateJSON.hpp"
+#include "lib/output/generateLTTng.hpp"
 #include "lib/output/generateOTF2.hpp"
 #include "lib/output/generatePerfetto.hpp"
 #include "lib/output/generateRocpd.hpp"
@@ -2462,6 +2462,36 @@ tool_fini(void* /*tool_data*/)
                           rccl_output.get_generator(),
                           rocdecode_output.get_generator(),
                           counters_output.get_generator());
+    }
+
+    if(tool::get_config().lttng_output && outdata.num_output > 0 &&
+       outdata.num_bytes >= tool::get_config().minimum_output_bytes)
+    {
+        auto hip_elem_data               = hip_output.load_all();
+        auto hsa_elem_data               = hsa_output.load_all();
+        auto kernel_dispatch_elem_data   = kernel_dispatch_output.load_all();
+        auto memory_copy_elem_data       = memory_copy_output.load_all();
+        auto marker_elem_data            = marker_output.load_all();
+        auto scratch_memory_elem_data    = scratch_memory_output.load_all();
+        auto rccl_elem_data              = rccl_output.load_all();
+        auto memory_allocation_elem_data = memory_allocation_output.load_all();
+        auto rocdecode_elem_data         = rocdecode_output.load_all();
+        auto rocjpeg_elem_data           = rocjpeg_output.load_all();
+
+        tool::write_lttng(tool::get_config(),
+                          *tool_metadata,
+                          getpid(),
+                          agents_output,
+                          &hip_elem_data,
+                          &hsa_elem_data,
+                          &kernel_dispatch_elem_data,
+                          &memory_copy_elem_data,
+                          &marker_elem_data,
+                          &scratch_memory_elem_data,
+                          &rccl_elem_data,
+                          &memory_allocation_elem_data,
+                          &rocdecode_elem_data,
+                          &rocjpeg_elem_data);
     }
 
     if(tool::get_config().otf2_output && outdata.num_output > 0 &&

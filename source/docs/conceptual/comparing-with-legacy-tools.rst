@@ -328,7 +328,7 @@ ROCprofiler-SDK introduces a new command-line tool, `rocprofv3`, which is a more
    * - I/O options
      - Output Formats
      - CSV, JSON (Chrome-Tracing format)
-     - CSV, JSON (Chrome-Tracing format), Perfetto, CTF
+     - CSV, JSON (Chrome-Tracing format), Perfetto, LTTng
      - CSV, JSON (custom schema), Perfetto, OTF2
      - | # Multiple output formats can be supported in single run.
        | # OTF2 can visualize larger trace files compared to perfetto.

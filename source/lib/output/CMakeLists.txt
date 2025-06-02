@@ -18,7 +18,7 @@ set(TOOL_OUTPUT_HEADERS
     generatePerfetto.hpp
     generateStats.hpp
     generateRocpd.hpp
-    generateCTF.hpp
+    generateLTTng.hpp
     generator.hpp
     kernel_symbol_info.hpp
     host_symbol_info.hpp
@@ -44,7 +44,7 @@ set(TOOL_OUTPUT_SOURCES
     generatePerfetto.cpp
     generateStats.cpp
     generateRocpd.cpp
-    generateCTF.cpp
+    generateLTTng.cpp
     metadata.cpp
     node_info.cpp
     output_config.cpp
@@ -53,8 +53,6 @@ set(TOOL_OUTPUT_SOURCES
     statistics.cpp
     tmp_file_buffer.cpp
     tmp_file.cpp)
-
-find_library(Babeltrace2 babeltrace2 REQUIRED HINTS "/usr/lib/x86_64-linux-gnu")
 
 add_library(rocprofiler-sdk-output-library STATIC)
 add_library(rocprofiler-sdk::rocprofiler-sdk-output-library ALIAS
@@ -75,9 +73,10 @@ target_link_libraries(
             rocprofiler-sdk::rocprofiler-sdk-dw
             rocprofiler-sdk::rocprofiler-sdk-elf
             rocprofiler-sdk::rocprofiler-sdk-sqlite3
-            babeltrace2)
+            rocprofiler-sdk-tool-output-lttng)
 
 target_compile_definitions(rocprofiler-sdk-output-library
                            PRIVATE PROJECT_BINARY_DIR="${PROJECT_BINARY_DIR}")
 
 add_subdirectory(sql)
+add_subdirectory(lttng)
