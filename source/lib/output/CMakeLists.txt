@@ -72,8 +72,7 @@ target_link_libraries(
             rocprofiler-sdk::rocprofiler-sdk-amd-comgr
             rocprofiler-sdk::rocprofiler-sdk-dw
             rocprofiler-sdk::rocprofiler-sdk-elf
-            rocprofiler-sdk::rocprofiler-sdk-sqlite3
-            rocprofiler-sdk-tool-output-lttng)
+            rocprofiler-sdk::rocprofiler-sdk-sqlite3)
 
 target_compile_definitions(rocprofiler-sdk-output-library
                            PRIVATE PROJECT_BINARY_DIR="${PROJECT_BINARY_DIR}")

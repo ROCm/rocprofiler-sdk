@@ -40,3 +40,6 @@
 [submodule "external/gotcha"]
 	path = external/gotcha
 	url = https://jrmadsen@github.com/jrmadsen/GOTCHA
+[submodule "external/lttng"]
+	path = external/lttng
+	url = https://github.com/lttng/lttng-ust.git

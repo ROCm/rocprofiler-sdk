@@ -279,6 +279,64 @@ else()
 endif()
 
 #
+# LTTng-UST
+#
+if(ROCPROFILER_BUILD_LTTNG)
+    # checkout submodule if not already checked out or clone repo if no .gitmodules file
+    rocprofiler_checkout_git_submodule(
+        RECURSIVE
+        RELATIVE_PATH external/lttng
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        TEST_FILE bootstrap
+        REPO_URL https://github.com/lttng/lttng-ust
+        REPO_BRANCH "stable-2.13")
+
+    find_program(
+        MAKE_COMMAND
+        NAMES make gmake
+        PATH_SUFFIXES bin REQUIRED)
+
+    execute_process(
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/external/lttng
+        COMMAND ./bootstrap
+        RESULT_VARIABLE RET)
+
+    if(RET GREATER 0)
+        message(STATUS "Bootstrap command for LTTng-UST failed.")
+        message(FATAL_ERROR "Command: ./bootstrap")
+    endif()
+
+    include(ExternalProject)
+    externalproject_add(
+        rocprofiler-sdk-lttng-build
+        PREFIX ${PROJECT_BINARY_DIR}/external/lttng/build
+        SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/lttng
+        BUILD_IN_SOURCE 0
+        CONFIGURE_COMMAND
+            <SOURCE_DIR>/configure --prefix=${PROJECT_BINARY_DIR}/external/lttng/install
+            --libdir=${PROJECT_BINARY_DIR}/external/lttng/install/lib
+            --disable-man-pages --with-pic CFLAGS=-O3\ -g1
+        BUILD_COMMAND ${MAKE_COMMAND} -j ${CMAKE_BUILD_PARALLEL_LEVEL} install -s
+        INSTALL_COMMAND "")
+
+    target_link_libraries(
+        rocprofiler-sdk-lttng
+        INTERFACE
+            $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/external/lttng/install/lib/liblttng-ust.so>
+        )
+    target_include_directories(
+        rocprofiler-sdk-lttng SYSTEM
+        INTERFACE $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/external/lttng/install/include>
+        )
+    add_dependencies(rocprofiler-sdk-lttng rocprofiler-sdk-lttng-build)
+else()
+    find_package(LTTngUST REQUIRED)
+    target_include_directories(rocprofiler-sdk-lttng
+                           SYSTEM INTERFACE ${LTTNGUST_INCLUDE_DIRS})
+    target_link_libraries(rocprofiler-sdk-lttng INTERFACE ${LTTNGUST_LIBRARIES})
+endif()
+
+#
 # PyBind11
 #
 if(ROCPROFILER_BUILD_PYBIND11)
