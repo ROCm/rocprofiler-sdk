@@ -217,6 +217,232 @@ TRACEPOINT_EVENT(
     )
 )
 
+// Define the tracepoint event for recording Marker API Traces
+TRACEPOINT_EVENT(
+    rocprofv3_trace,
+    marker_api,
+    TP_ARGS(
+        uint64_t, rec_pid,
+
+        uint32_t, rec_operation,
+
+        uint64_t, rec_ancestor_correlation_id,
+        uint64_t, rec_internal_correlation_id,
+
+        uint64_t, rec_start_ts,
+        uint64_t, rec_end_ts,
+
+        uint64_t, rec_thread_id,
+
+        const char*, rec_name
+        ),
+    TP_FIELDS(
+        ctf_integer(uint64_t, pid, rec_pid)
+
+        ctf_integer(uint32_t, operation, rec_operation)
+
+        ctf_integer(uint64_t, ancestor_correlation_id, rec_ancestor_correlation_id)
+        ctf_integer(uint64_t, internal_correlation_id, rec_internal_correlation_id)
+
+        ctf_integer(uint64_t, start_timestamp, rec_start_ts)
+        ctf_integer(uint64_t, end_timestamp, rec_end_ts)
+
+        ctf_integer(uint64_t, thread_id, rec_thread_id)
+
+        ctf_string(name, rec_name)
+    )
+)
+
+// Define the tracepoint event for recording Scratch Memory Copy Traces
+TRACEPOINT_EVENT(
+    rocprofv3_trace,
+    scratch_memory,
+    TP_ARGS(
+        uint64_t, rec_pid,
+
+        uint32_t, rec_operation,
+
+        uint64_t, rec_ancestor_correlation_id,
+        uint64_t, rec_internal_correlation_id,
+
+        uint64_t, rec_start_ts,
+        uint64_t, rec_end_ts,
+
+        uint64_t, rec_thread_id,
+        uint64_t, rec_agent_id,
+        uint64_t, rec_queue_id,
+
+        uint32_t, rec_flags
+        ),
+    TP_FIELDS(
+        ctf_integer(uint64_t, pid, rec_pid)
+
+        ctf_integer(uint32_t, operation, rec_operation)
+
+        ctf_integer(uint64_t, ancestor_correlation_id, rec_ancestor_correlation_id)
+        ctf_integer(uint64_t, internal_correlation_id, rec_internal_correlation_id)
+
+        ctf_integer(uint64_t, start_timestamp, rec_start_ts)
+        ctf_integer(uint64_t, end_timestamp, rec_end_ts)
+
+        ctf_integer(uint64_t, thread_id, rec_thread_id)
+        ctf_integer(uint64_t, agent_id, rec_agent_id)
+        ctf_integer(uint64_t, dst_queue_id, rec_queue_id)
+
+        ctf_integer(uint64_t, flags, rec_flags)
+    )
+)
+
+// Define the tracepoint event for recording RCCL API Traces
+TRACEPOINT_EVENT(
+    rocprofv3_trace,
+    rccl_api,
+    TP_ARGS(
+        uint64_t, rec_pid,
+
+        uint64_t, rec_ancestor_correlation_id,
+        uint64_t, rec_internal_correlation_id,
+
+        uint64_t, rec_start_ts,
+        uint64_t, rec_end_ts,
+
+        uint64_t, rec_thread_id,
+
+        const char*, rec_name
+        ),
+    TP_FIELDS(
+        ctf_integer(uint64_t, pid, rec_pid)
+
+        ctf_integer(uint64_t, ancestor_correlation_id, rec_ancestor_correlation_id)
+        ctf_integer(uint64_t, internal_correlation_id, rec_internal_correlation_id)
+
+        ctf_integer(uint64_t, start_timestamp, rec_start_ts)
+        ctf_integer(uint64_t, end_timestamp, rec_end_ts)
+
+        ctf_integer(uint64_t, thread_id, rec_thread_id)
+
+        ctf_string(name, rec_name)
+    )
+)
+
+// Define the tracepoint event for recording Memory Allocation Traces
+TRACEPOINT_EVENT(
+    rocprofv3_trace,
+    memory_allocation,
+    TP_ARGS(
+        uint64_t, rec_pid,
+
+        uint64_t, rec_operation,
+
+        uint64_t, rec_internal_correlation_id,
+
+        uint64_t, rec_start_ts,
+        uint64_t, rec_end_ts,
+
+        uint64_t, rec_thread_id,
+        uint64_t, rec_agent_id,
+        uint64_t, rec_stream_id,
+
+        // uint64_t, rec_ptr_address,
+        uint64_t, rec_ptr_value,
+        uint64_t, rec_allocation_size
+        ),
+    TP_FIELDS(
+        ctf_integer(uint64_t, pid, rec_pid)
+
+        ctf_integer(uint64_t, operation, rec_operation)
+
+        ctf_integer(uint64_t, internal_correlation_id, rec_internal_correlation_id)
+
+        ctf_integer(uint64_t, start_timestamp, rec_start_ts)
+        ctf_integer(uint64_t, end_timestamp, rec_end_ts)
+
+        ctf_integer(uint64_t, thread_id, rec_thread_id)
+        ctf_integer(uint64_t, agent_id, rec_agent_id)
+        ctf_integer(uint64_t, stream_id, rec_stream_id)
+
+        // ctf_integer(uint64_t, ptr_address, rec_ptr_address)
+        ctf_integer(uint64_t, ptr_value, rec_ptr_value)
+        ctf_integer(uint64_t, allocation_size, rec_allocation_size)
+    )
+)
+
+// Define the tracepoint event for recording ROCDecode API Traces
+TRACEPOINT_EVENT(
+    rocprofv3_trace,
+    rocdecode_api,
+    TP_ARGS(
+        uint64_t, rec_pid,
+
+        uint64_t, rec_ancestor_correlation_id,
+        uint64_t, rec_internal_correlation_id,
+
+        uint64_t, rec_start_ts,
+        uint64_t, rec_end_ts,
+
+        uint64_t, rec_thread_id,
+
+        const char*, rec_name,
+
+        /* Raw dump of the rocprofiler_hip_api_args_t union */
+        const uint8_t*, raw_args_data,  // Pointer to the start of the args union
+        uint64_t, raw_args_size  // Size of the args union (sizeof)
+
+        // uint64_t, rec_retval
+        // const char*, rec_retval_str
+        ),
+    TP_FIELDS(
+        ctf_integer(uint64_t, pid, rec_pid)
+
+        ctf_integer(uint64_t, internal_correlation_id, rec_internal_correlation_id)
+
+        ctf_integer(uint64_t, start_timestamp, rec_start_ts)
+        ctf_integer(uint64_t, end_timestamp, rec_end_ts)
+
+        ctf_integer(uint64_t, thread_id, rec_thread_id)
+
+        ctf_string(name, rec_name)
+
+        /* Raw dump of the args union */
+        ctf_sequence(uint8_t, args_raw_payload, raw_args_data, uint64_t, raw_args_size)
+
+        // ctf_integer(uint64_t, retval, rec_retval)
+        // ctf_string(retval_str, rec_retval_str)
+    )
+)
+
+// Define the tracepoint event for recording ROCJPEG API Traces
+TRACEPOINT_EVENT(
+    rocprofv3_trace,
+    rocjpeg_api,
+    TP_ARGS(
+        uint64_t, rec_pid,
+
+        uint64_t, rec_ancestor_correlation_id,
+        uint64_t, rec_internal_correlation_id,
+
+        uint64_t, rec_start_ts,
+        uint64_t, rec_end_ts,
+
+        uint64_t, rec_thread_id,
+
+        const char*, rec_name
+        ),
+    TP_FIELDS(
+        ctf_integer(uint64_t, pid, rec_pid)
+
+        ctf_integer(uint64_t, ancestor_correlation_id, rec_ancestor_correlation_id)
+        ctf_integer(uint64_t, internal_correlation_id, rec_internal_correlation_id)
+
+        ctf_integer(uint64_t, start_timestamp, rec_start_ts)
+        ctf_integer(uint64_t, end_timestamp, rec_end_ts)
+
+        ctf_integer(uint64_t, thread_id, rec_thread_id)
+
+        ctf_string(name, rec_name)
+    )
+)
+
 #endif /* _ROCPROFILER_SDK_TRACE_PROVIDER_H */
 
 #include <lttng/tracepoint-event.h>  // Must be last

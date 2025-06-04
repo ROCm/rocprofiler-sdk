@@ -40,7 +40,7 @@ namespace rocprofiler
 namespace tool
 {
 void
-write_lttng(const output_config&                                            /*cfg*/,
+write_lttng(const output_config& /*cfg*/,
             const metadata&                                                 tool_metadata,
             uint64_t                                                        pid,
             const std::vector<agent_info>&                                  agent_data,
@@ -76,7 +76,7 @@ write_lttng(const output_config&                                            /*cf
     // Loop over each deque and call write_event for each record
     if(hip_api_data)
     {
-        for (auto hip_api_record : *hip_api_data)
+        for(auto hip_api_record : *hip_api_data)
         {
             // --- Prepare raw args data ---
             const uint8_t* raw_args_ptr = reinterpret_cast<const uint8_t*>(&hip_api_record.args);
@@ -101,7 +101,7 @@ write_lttng(const output_config&                                            /*cf
     }
     if(hsa_api_data)
     {
-        for (auto hsa_api_record : *hsa_api_data)
+        for(auto hsa_api_record : *hsa_api_data)
         {
             auto api_name = buffer_names.at(hsa_api_record.kind, hsa_api_record.operation);
 
@@ -113,15 +113,16 @@ write_lttng(const output_config&                                            /*cf
                        hsa_api_record.correlation_id.internal,
                        hsa_api_record.start_timestamp,
                        hsa_api_record.end_timestamp,
-                       hsa_api_record.thread_id
-            );
+                       hsa_api_record.thread_id);
         }
     }
     if(kernel_dispatch_data)
     {
-        for(auto kernel_dispatch_record : *kernel_dispatch_data) {
+        for(auto kernel_dispatch_record : *kernel_dispatch_data)
+        {
             auto name =
-                tool_metadata.get_kernel_name(kernel_dispatch_record.dispatch_info.kernel_id, kernel_dispatch_record.correlation_id.external.value);
+                tool_metadata.get_kernel_name(kernel_dispatch_record.dispatch_info.kernel_id,
+                                              kernel_dispatch_record.correlation_id.external.value);
 
             tracepoint(rocprofv3_trace,
                        kernel_dispatch,
@@ -133,13 +134,13 @@ write_lttng(const output_config&                                            /*cf
                        kernel_dispatch_record.dispatch_info.agent_id.handle,
                        kernel_dispatch_record.dispatch_info.queue_id.handle,
                        kernel_dispatch_record.stream_id.handle,
-                       name.data()
-            );
+                       name.data());
         }
     }
     if(memory_copy_data)
     {
-        for(auto memory_copy_record : *memory_copy_data) {
+        for(auto memory_copy_record : *memory_copy_data)
+        {
             tracepoint(rocprofv3_trace,
                        memory_copy,
                        pid,
@@ -151,57 +152,125 @@ write_lttng(const output_config&                                            /*cf
                        memory_copy_record.src_agent_id.handle,
                        memory_copy_record.dst_agent_id.handle,
                        memory_copy_record.stream_id.handle,
-                       memory_copy_record.bytes
-            );
+                       memory_copy_record.bytes);
         }
     }
     if(marker_api_data)
     {
-        // ctf_out.write_event_source_component("marker_api_source",
-        //                              marker_api_source_init,
-        //                              marker_api_source_finalize,
-        //                              marker_api_source_next,
-        //                              marker_api_data);
+        for(auto marker_api_record : *marker_api_data)
+        {
+            auto name =
+                (marker_api_record.kind == ROCPROFILER_BUFFER_TRACING_MARKER_CORE_API &&
+                 marker_api_record.operation != ROCPROFILER_MARKER_CORE_API_ID_roctxGetThreadId)
+                    ? tool_metadata.get_marker_message(marker_api_record.correlation_id.internal)
+                    : buffer_names.at(marker_api_record.kind, marker_api_record.operation);
+            tracepoint(rocprofv3_trace,
+                       marker_api,
+                       pid,
+                       marker_api_record.operation,
+                       marker_api_record.correlation_id.ancestor,
+                       marker_api_record.correlation_id.internal,
+                       marker_api_record.start_timestamp,
+                       marker_api_record.end_timestamp,
+                       marker_api_record.thread_id,
+                       name.data());
+        }
     }
     if(scratch_memory_data)
     {
-        // ctf_out.write_event_source_component("scratch_memory_source",
-        //                              scratch_memory_source_init,
-        //                              scratch_memory_source_finalize,
-        //                              scratch_memory_source_next,
-        //                              scratch_memory_data);
+        for(auto scratch_memory_record : *scratch_memory_data)
+        {
+            tracepoint(rocprofv3_trace,
+                       scratch_memory,
+                       pid,
+                       scratch_memory_record.operation,
+                       scratch_memory_record.correlation_id.ancestor,
+                       scratch_memory_record.correlation_id.internal,
+                       scratch_memory_record.start_timestamp,
+                       scratch_memory_record.end_timestamp,
+                       scratch_memory_record.thread_id,
+                       scratch_memory_record.agent_id.handle,
+                       scratch_memory_record.queue_id.handle,
+                       scratch_memory_record.flags);
+        }
     }
     if(rccl_api_data)
     {
-        // ctf_out.write_event_source_component("rccl_api_source",
-        //                              rccl_api_source_init,
-        //                              rccl_api_source_finalize,
-        //                              rccl_api_source_next,
-        //                              rccl_api_data);
+        for(auto rccl_api_record : *rccl_api_data)
+        {
+            auto name = buffer_names.at(rccl_api_record.kind, rccl_api_record.operation);
+            tracepoint(rocprofv3_trace,
+                       rccl_api,
+                       pid,
+                       rccl_api_record.correlation_id.ancestor,
+                       rccl_api_record.correlation_id.internal,
+                       rccl_api_record.start_timestamp,
+                       rccl_api_record.end_timestamp,
+                       rccl_api_record.thread_id,
+                       name.data());
+        }
     }
     if(memory_allocation_data)
     {
-        // ctf_out.write_event_source_component("memory_allocation_source",
-        //                              memory_allocation_source_init,
-        //                              memory_allocation_source_finalize,
-        //                              memory_allocation_source_next,
-        //                              memory_allocation_data);
+        for(auto memory_allocation_record : *memory_allocation_data)
+        {
+            tracepoint(rocprofv3_trace,
+                       memory_allocation,
+                       pid,
+                       memory_allocation_record.operation,
+                       memory_allocation_record.correlation_id.internal,
+                       memory_allocation_record.start_timestamp,
+                       memory_allocation_record.end_timestamp,
+                       memory_allocation_record.thread_id,
+                       memory_allocation_record.agent_id.handle,
+                       memory_allocation_record.stream_id.handle,
+                       memory_allocation_record.address.value,
+                       memory_allocation_record.allocation_size);
+        }
     }
     if(rocdecode_api_data)
     {
-        // ctf_out.write_event_source_component("rocdecode_api_source",
-        //                              rocdecode_api_source_init,
-        //                              rocdecode_api_source_finalize,
-        //                              rocdecode_api_source_next,
-        //                              rocdecode_api_data);
+        for(auto rocdecode_api_record : *rocdecode_api_data)
+        {
+            auto name = buffer_names.at(rocdecode_api_record.kind, rocdecode_api_record.operation);
+
+            // TODO(aelwazir): Uncomment if sending the data as bytes didn't work
+            // auto  rocdecode_args = sdk::serialization::get_buffer_tracing_args(itr);
+
+            // --- Prepare raw args data ---
+            const uint8_t* raw_args_ptr =
+                reinterpret_cast<const uint8_t*>(&rocdecode_api_record.args);
+            uint64_t raw_args_size_val = static_cast<uint64_t>(sizeof(rocdecode_api_record.args));
+
+            tracepoint(rocprofv3_trace,
+                       rocdecode_api,
+                       pid,
+                       rocdecode_api_record.correlation_id.ancestor,
+                       rocdecode_api_record.correlation_id.internal,
+                       rocdecode_api_record.start_timestamp,
+                       rocdecode_api_record.end_timestamp,
+                       rocdecode_api_record.thread_id,
+                       name.data(),
+                       raw_args_ptr,
+                       raw_args_size_val);
+        }
     }
     if(rocjpeg_api_data)
     {
-        // ctf_out.write_event_source_component("rocjpeg_api_source",
-        //                              rocjpeg_api_source_init,
-        //                              rocjpeg_api_source_finalize,
-        //                              rocjpeg_api_source_next,
-        //                              rocjpeg_api_data);
+        for(auto rocjpeg_api_record : *rocjpeg_api_data)
+        {
+            auto name = buffer_names.at(rocjpeg_api_record.kind, rocjpeg_api_record.operation);
+
+            tracepoint(rocprofv3_trace,
+                       rocjpeg_api,
+                       pid,
+                       rocjpeg_api_record.correlation_id.ancestor,
+                       rocjpeg_api_record.correlation_id.internal,
+                       rocjpeg_api_record.start_timestamp,
+                       rocjpeg_api_record.end_timestamp,
+                       rocjpeg_api_record.thread_id,
+                       name.data());
+        }
     }
 }
 
