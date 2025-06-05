@@ -314,8 +314,8 @@ if(ROCPROFILER_BUILD_LTTNG)
         BUILD_IN_SOURCE 0
         CONFIGURE_COMMAND
             <SOURCE_DIR>/configure --prefix=${PROJECT_BINARY_DIR}/external/lttng/install
-            --libdir=${PROJECT_BINARY_DIR}/external/lttng/install/lib
-            --disable-man-pages --with-pic CFLAGS=-O3\ -g1
+            --libdir=${PROJECT_BINARY_DIR}/external/lttng/install/lib --disable-man-pages
+            --with-pic CFLAGS=-O3\ -g1
         BUILD_COMMAND ${MAKE_COMMAND} -j ${CMAKE_BUILD_PARALLEL_LEVEL} install -s
         INSTALL_COMMAND "")
 
@@ -326,13 +326,12 @@ if(ROCPROFILER_BUILD_LTTNG)
         )
     target_include_directories(
         rocprofiler-sdk-lttng SYSTEM
-        INTERFACE $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/external/lttng/install/include>
-        )
+        INTERFACE $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/external/lttng/install/include>)
     add_dependencies(rocprofiler-sdk-lttng rocprofiler-sdk-lttng-build)
 else()
     find_package(LTTngUST REQUIRED)
-    target_include_directories(rocprofiler-sdk-lttng
-                           SYSTEM INTERFACE ${LTTNGUST_INCLUDE_DIRS})
+    target_include_directories(rocprofiler-sdk-lttng SYSTEM
+                               INTERFACE ${LTTNGUST_INCLUDE_DIRS})
     target_link_libraries(rocprofiler-sdk-lttng INTERFACE ${LTTNGUST_LIBRARIES})
 endif()
 

@@ -39,6 +39,30 @@ namespace rocprofiler
 {
 namespace tool
 {
+struct args_info
+{
+    std::string type  = {};
+    std::string value = {};
+};
+int
+iterate_args_callback(rocprofiler_buffer_tracing_kind_t /*kind*/,
+                      rocprofiler_tracing_operation_t /*operation*/,
+                      uint32_t /*arg_number*/,
+                      const void* const /*arg_value_addr*/,
+                      int32_t /*arg_indirection_count*/,
+                      const char* arg_type,
+                      const char* arg_name,
+                      const char* arg_value_str,
+                      void*       data)
+{
+    ROCP_FATAL_IF(data == nullptr) << "nullptr to data for iterate_args_callback";
+
+    auto* _data = static_cast<std::vector<args_info>*>(data);
+    if(arg_type && arg_name && arg_value_str)
+        _data->emplace_back(args_info{arg_name, arg_value_str});
+    return 0;
+}
+
 void
 write_lttng(const output_config& /*cfg*/,
             const metadata&                                                 tool_metadata,
@@ -58,7 +82,7 @@ write_lttng(const output_config& /*cfg*/,
     auto buffer_names     = sdk::get_buffer_tracing_names();
     auto callbk_name_info = sdk::get_callback_tracing_names();
 
-    for(auto& _agent_info : agent_data)
+    for(const auto& _agent_info : agent_data)
     {
         tracepoint(rocprofv3_trace,
                    agents_info,
@@ -78,12 +102,26 @@ write_lttng(const output_config& /*cfg*/,
     {
         for(auto hip_api_record : *hip_api_data)
         {
-            // --- Prepare raw args data ---
-            const uint8_t* raw_args_ptr = reinterpret_cast<const uint8_t*>(&hip_api_record.args);
-            uint64_t       raw_args_size_val = static_cast<uint64_t>(
-                sizeof(hip_api_record.args));  // Or sizeof(rocprofiler_hip_api_args_t)
-
             auto api_name = buffer_names.at(hip_api_record.kind, hip_api_record.operation);
+
+            std::vector<const char*> args_types  = {};
+            std::vector<const char*> args_values = {};
+            std::vector<args_info>   args        = {};
+            {
+                auto _record = rocprofiler_record_header_t{
+                    .hash = rocprofiler_record_header_compute_hash(
+                        ROCPROFILER_BUFFER_CATEGORY_TRACING, hip_api_record.kind),
+                    .payload = &hip_api_record};
+
+                rocprofiler_iterate_buffer_tracing_record_args(
+                    _record, iterate_args_callback, &args);
+
+                for(const auto& arg : args)
+                {
+                    args_types.push_back(arg.type.c_str());
+                    args_values.push_back(arg.value.c_str());
+                }
+            }
 
             tracepoint(rocprofv3_trace,
                        hip_api,
@@ -94,9 +132,9 @@ write_lttng(const output_config& /*cfg*/,
                        hip_api_record.start_timestamp,
                        hip_api_record.end_timestamp,
                        hip_api_record.thread_id,
-                       raw_args_ptr,
-                       raw_args_size_val  // Sending args as bytes
-            );
+                       args_types.data(),
+                       args_values.data(),
+                       args.size());
         }
     }
     if(hsa_api_data)
@@ -123,6 +161,8 @@ write_lttng(const output_config& /*cfg*/,
             auto name =
                 tool_metadata.get_kernel_name(kernel_dispatch_record.dispatch_info.kernel_id,
                                               kernel_dispatch_record.correlation_id.external.value);
+            const auto& agent =
+                tool_metadata.get_agent(kernel_dispatch_record.dispatch_info.agent_id);
 
             tracepoint(rocprofv3_trace,
                        kernel_dispatch,
@@ -131,7 +171,7 @@ write_lttng(const output_config& /*cfg*/,
                        kernel_dispatch_record.start_timestamp,
                        kernel_dispatch_record.end_timestamp,
                        kernel_dispatch_record.thread_id,
-                       kernel_dispatch_record.dispatch_info.agent_id.handle,
+                       agent->node_id,
                        kernel_dispatch_record.dispatch_info.queue_id.handle,
                        kernel_dispatch_record.stream_id.handle,
                        name.data());
@@ -141,6 +181,9 @@ write_lttng(const output_config& /*cfg*/,
     {
         for(auto memory_copy_record : *memory_copy_data)
         {
+            const auto& src_agent = tool_metadata.get_agent(memory_copy_record.src_agent_id);
+            const auto& dst_agent = tool_metadata.get_agent(memory_copy_record.dst_agent_id);
+
             tracepoint(rocprofv3_trace,
                        memory_copy,
                        pid,
@@ -149,8 +192,8 @@ write_lttng(const output_config& /*cfg*/,
                        memory_copy_record.start_timestamp,
                        memory_copy_record.end_timestamp,
                        memory_copy_record.thread_id,
-                       memory_copy_record.src_agent_id.handle,
-                       memory_copy_record.dst_agent_id.handle,
+                       src_agent->node_id,
+                       dst_agent->node_id,
                        memory_copy_record.stream_id.handle,
                        memory_copy_record.bytes);
         }
@@ -180,6 +223,8 @@ write_lttng(const output_config& /*cfg*/,
     {
         for(auto scratch_memory_record : *scratch_memory_data)
         {
+            const auto& agent = tool_metadata.get_agent(scratch_memory_record.agent_id);
+
             tracepoint(rocprofv3_trace,
                        scratch_memory,
                        pid,
@@ -189,7 +234,7 @@ write_lttng(const output_config& /*cfg*/,
                        scratch_memory_record.start_timestamp,
                        scratch_memory_record.end_timestamp,
                        scratch_memory_record.thread_id,
-                       scratch_memory_record.agent_id.handle,
+                       agent->node_id,
                        scratch_memory_record.queue_id.handle,
                        scratch_memory_record.flags);
         }
@@ -214,6 +259,8 @@ write_lttng(const output_config& /*cfg*/,
     {
         for(auto memory_allocation_record : *memory_allocation_data)
         {
+            const auto& agent = tool_metadata.get_agent(memory_allocation_record.agent_id);
+
             tracepoint(rocprofv3_trace,
                        memory_allocation,
                        pid,
@@ -222,9 +269,9 @@ write_lttng(const output_config& /*cfg*/,
                        memory_allocation_record.start_timestamp,
                        memory_allocation_record.end_timestamp,
                        memory_allocation_record.thread_id,
-                       memory_allocation_record.agent_id.handle,
+                       agent->node_id,
                        memory_allocation_record.stream_id.handle,
-                       memory_allocation_record.address.value,
+                       memory_allocation_record.address,
                        memory_allocation_record.allocation_size);
         }
     }
@@ -234,13 +281,24 @@ write_lttng(const output_config& /*cfg*/,
         {
             auto name = buffer_names.at(rocdecode_api_record.kind, rocdecode_api_record.operation);
 
-            // TODO(aelwazir): Uncomment if sending the data as bytes didn't work
-            // auto  rocdecode_args = sdk::serialization::get_buffer_tracing_args(itr);
+            std::vector<const char*> args_types  = {};
+            std::vector<const char*> args_values = {};
+            std::vector<args_info>   args        = {};
+            {
+                auto _record = rocprofiler_record_header_t{
+                    .hash = rocprofiler_record_header_compute_hash(
+                        ROCPROFILER_BUFFER_CATEGORY_TRACING, rocdecode_api_record.kind),
+                    .payload = &rocdecode_api_record};
 
-            // --- Prepare raw args data ---
-            const uint8_t* raw_args_ptr =
-                reinterpret_cast<const uint8_t*>(&rocdecode_api_record.args);
-            uint64_t raw_args_size_val = static_cast<uint64_t>(sizeof(rocdecode_api_record.args));
+                rocprofiler_iterate_buffer_tracing_record_args(
+                    _record, iterate_args_callback, &args);
+
+                for(const auto& arg : args)
+                {
+                    args_types.push_back(arg.type.c_str());
+                    args_values.push_back(arg.value.c_str());
+                }
+            }
 
             tracepoint(rocprofv3_trace,
                        rocdecode_api,
@@ -251,8 +309,9 @@ write_lttng(const output_config& /*cfg*/,
                        rocdecode_api_record.end_timestamp,
                        rocdecode_api_record.thread_id,
                        name.data(),
-                       raw_args_ptr,
-                       raw_args_size_val);
+                       args_types.data(),
+                       args_values.data(),
+                       args.size());
         }
     }
     if(rocjpeg_api_data)
