@@ -988,18 +988,17 @@ def run(app_args, args, **kwargs):
         path_to_check = val
         if not os.path.exists(val):
             lib_dir = os.path.dirname(val)
-            
             found_alternative = None
             for filename in os.listdir(lib_dir):
                 if filename.startswith(os.path.basename(val) + "."):
                     found_alternative = os.path.join(lib_dir, filename)
-                    break 
+                    break
 
             if found_alternative:
                 path_to_check = found_alternative
             else:
                 fatal_error(f"{val} does not exist")
-            
+
         if os.path.islink(path_to_check):
             if args.readlink:
                 path_to_check = os.path.abspath(os.readlink(path_to_check))
