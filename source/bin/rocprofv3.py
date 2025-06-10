@@ -985,14 +985,27 @@ def run(app_args, args, **kwargs):
     )
 
     def resolve_path(val):
+        path_to_check = val
         if not os.path.exists(val):
-            fatal_error(f"{val} does not exist")
-        if os.path.islink(val):
+            lib_dir = os.path.dirname(val)
+            
+            found_alternative = None
+            for filename in os.listdir(lib_dir):
+                if filename.startswith(os.path.basename(val) + "."):
+                    found_alternative = os.path.join(lib_dir, filename)
+                    break 
+
+            if found_alternative:
+                path_to_check = found_alternative
+            else:
+                fatal_error(f"{val} does not exist")
+            
+        if os.path.islink(path_to_check):
             if args.readlink:
-                val = os.path.abspath(os.readlink(val))
+                path_to_check = os.path.abspath(os.readlink(path_to_check))
             if args.realpath:
-                val = os.path.realpath(val)
-        return val
+                path_to_check = os.path.realpath(path_to_check)
+        return path_to_check
 
     ROCPROF_TOOL_LIBRARY = resolve_path(ROCPROF_TOOL_LIBRARY)
     ROCPROF_SDK_LIBRARY = resolve_path(ROCPROF_SDK_LIBRARY)
