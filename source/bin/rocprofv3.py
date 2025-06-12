@@ -985,19 +985,19 @@ def run(app_args, args, **kwargs):
     )
 
     def resolve_path(val):
-        path_to_check = val
+        path = val
         if not os.path.exists(val):
             major_version = CONST_VERSION_INFO['version'].split(".")[0]
-            path_to_check = val + "." + major_version
-            if not os.path.exists(path_to_check):
+            path = f"{val}.{major_version}"
+            if not os.path.exists(path):
                 fatal_error(f"{val} does not exist")
 
-        if os.path.islink(path_to_check):
+        if os.path.islink(path):
             if args.readlink:
-                path_to_check = os.path.abspath(os.readlink(path_to_check))
+                path = os.path.abspath(os.readlink(path))
             if args.realpath:
-                path_to_check = os.path.realpath(path_to_check)
-        return path_to_check
+                path = os.path.realpath(path)
+        return path
 
     ROCPROF_TOOL_LIBRARY = resolve_path(ROCPROF_TOOL_LIBRARY)
     ROCPROF_SDK_LIBRARY = resolve_path(ROCPROF_SDK_LIBRARY)
