@@ -76,7 +76,8 @@ typedef struct rocprofiler_thread_trace_decoder_perfevent_t
 
 typedef enum rocprofiler_thread_trace_decoder_occupancy_flags_t
 {
-    ROCPROFILER_THREAD_TRACE_DECODER_OCCUPANCY_FLAGS_WAVE_START = 1 << 0,  // If not set, it's wave end
+    ROCPROFILER_THREAD_TRACE_DECODER_OCCUPANCY_FLAGS_WAVE_START =
+        1 << 0,  // If not set, it's wave end
 } rocprofiler_thread_trace_decoder_occupancy_flags_t;
 
 /**
@@ -84,8 +85,8 @@ typedef enum rocprofiler_thread_trace_decoder_occupancy_flags_t
  */
 typedef struct rocprofiler_thread_trace_decoder_occupancy_t
 {
-    rocprofiler_thread_trace_decoder_pc_t pc;         ///< Wave start address (kernel entry point)
-    rocprofiler_shader_timestamp_t        time;       ///< Timestamp of event
+    rocprofiler_thread_trace_decoder_pc_t pc;    ///< Wave start address (kernel entry point)
+    rocprofiler_shader_timestamp_t        time;  ///< Timestamp of event
 
     uint8_t  flags;  ///< One of rocprofiler_thread_trace_decoder_occupancy_flags_t
     uint8_t  cu;     ///< Compute unit ID (gfx9) or WGP ID (gfx10+)
@@ -178,8 +179,8 @@ typedef struct rocprofiler_thread_trace_decoder_wave_t
     uint32_t _rsvd2;
     uint32_t _rsvd3;
 
-    rocprofiler_shader_timestamp_t begin_time;  ///< Wave begin time. Should match occupancy event wave start.
-    rocprofiler_shader_timestamp_t end_time;    ///< Wave end time. Should match occupancy event wave end.
+    rocprofiler_shader_timestamp_t start_time;  ///< Matches occupancy event wave start.
+    rocprofiler_shader_timestamp_t end_time;    ///< Matches occupancy event wave end.
 
     size_t                                         timeline_size;      ///< timeline_array size
     size_t                                         instructions_size;  ///< instructions_array size

@@ -42,11 +42,13 @@ DL::DL(const char* libpath)
     handle = dlopen(path.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if(!handle) return;
 
-    parse_fn  = static_cast<ParseFn*>(dlsym(handle, "rocprof_trace_decoder_parse_data"));
-    info_fn   = static_cast<InfoFn*>(dlsym(handle, "rocprof_trace_decoder_get_info_string"));
-    status_fn = static_cast<StatusFn*>(dlsym(handle, "rocprof_trace_decoder_get_status_string"));
+    parse_fn = reinterpret_cast<ParseFn*>(dlsym(handle, "rocprof_trace_decoder_parse_data"));
+    info_fn  = reinterpret_cast<InfoFn*>(dlsym(handle, "rocprof_trace_decoder_get_info_string"));
+    status_fn =
+        reinterpret_cast<StatusFn*>(dlsym(handle, "rocprof_trace_decoder_get_status_string"));
 
-    auto* version_fn = static_cast<VersionFn*>(dlsym(handle, "rocprof_trace_decoder_get_version"));
+    auto* version_fn =
+        reinterpret_cast<VersionFn*>(dlsym(handle, "rocprof_trace_decoder_get_version"));
     // Decoder did not have version query as of 0.1.1
     if(version_fn)
     {

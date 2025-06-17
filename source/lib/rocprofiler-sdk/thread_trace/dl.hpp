@@ -44,8 +44,8 @@ public:
 
     bool valid() const
     {
-        return handle != nullptr && att_parse_data_fn != nullptr && att_info_fn != nullptr &&
-               att_status_fn != nullptr;
+        return handle != nullptr && parse_fn != nullptr && info_fn != nullptr &&
+               status_fn != nullptr;
     };
 
     ParseFn*  parse_fn  = nullptr;

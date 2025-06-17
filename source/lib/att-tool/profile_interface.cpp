@@ -75,7 +75,7 @@ get_trace_data(rocprofiler_thread_trace_decoder_record_type_t trace_id,
     for(size_t wave_n = 0; wave_n < trace_size; wave_n++)
     {
         const auto& wave           = static_cast<const wave_t*>(trace_events)[wave_n];
-        int64_t     prev_inst_time = wave.begin_time;
+        int64_t     prev_inst_time = wave.start_time;
 
         for(size_t j = 0; j < wave.instructions_size; j++)
         {

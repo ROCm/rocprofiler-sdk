@@ -82,8 +82,8 @@ rocprofiler_thread_trace_decoder_create(rocprofiler_thread_trace_decoder_handle_
     if(!dl->valid() || dl->version > TTD_API_VERSION)
     {
         ROCP_CI_LOG(ERROR) << "Incompatible decoder version: v" << dl->version_major << '.'
-                           << dl->version_minor << "\nExpected: " << TTD_API_VERSION_MAJOR
-                           << '.' << TTD_API_VERSION_MINOR << " or lower.\nPlease update the SDK or"
+                           << dl->version_minor << "\nExpected: " << TTD_API_VERSION_MAJOR << '.'
+                           << TTD_API_VERSION_MINOR << " or lower.\nPlease update the SDK or"
                            << " use a compatible library version.";
 
         return ROCPROFILER_STATUS_ERROR_INCOMPATIBLE_ABI;
@@ -213,27 +213,26 @@ trace_callback(rocprofiler_thread_trace_decoder_record_type_t record_type_id,
                uint64_t                                       trace_size,
                void*                                          userdata)
 {
-    using wave_it      = rocprofiler_thread_trace_decoder_wave_t;
-    using inst_t       = rocprofiler_thread_trace_decoder_inst_t;
-    using occupancy_t  = rocprofiler_thread_trace_decoder_occupancy_t;
+    using wave_t      = rocprofiler_thread_trace_decoder_wave_t;
+    using occupancy_t = rocprofiler_thread_trace_decoder_occupancy_t;
 
     ROCP_FATAL_IF(userdata == nullptr) << "Userdata is null!";
     auto* trace_data = static_cast<trace_data_t*>(userdata);
 
-    ROCP_FATAL_IF(trace_data->decoder == nullptr) << "Decoder is null!"
-    ROCP_FATAL_IF(trace_data->decoder->dl == nullptr) << "DL is null!"
+    ROCP_FATAL_IF(trace_data->decoder == nullptr) << "Decoder is null!";
+    ROCP_FATAL_IF(trace_data->decoder->dl == nullptr) << "DL is null!";
 
     // For version v0.1, we need to convert stall to exec time and fix the bitshifts
     if(trace_data->decoder->dl->version <= TTD_MAKE_VERSION(0, 1))
     {
-        if (record_type_id == ROCPROFILER_THREAD_TRACE_DECODER_RECORD_WAVE)
+        if(record_type_id == ROCPROFILER_THREAD_TRACE_DECODER_RECORD_WAVE)
         {
-            auto* waves = static_cast<wave_it*>(trace_events);
-            for (size_t w=0; w<trace_size; w++)
+            for(size_t w = 0; w < trace_size; w++)
             {
-                for (size_t i = 0; i < wave.instructions_size; i++)
+                auto& wave = static_cast<wave_t*>(trace_events)[w];
+                for(size_t i = 0; i < wave.instructions_size; i++)
                 {
-                    auto& inst = static_cast<inst_t*>(waves[w].instructions_array)[i];
+                    auto& inst = wave.instructions_array[i];
                     // v0.1 uses the 24 high bits as stall
                     auto stall = (static_cast<uint64_t>(inst.exec) << 8) | inst.reserved;
                     // Duration is defined as exec + stall
@@ -242,10 +241,9 @@ trace_callback(rocprofiler_thread_trace_decoder_record_type_t record_type_id,
                 }
             }
         }
-        else if (record_type_id == ROCPROFILER_THREAD_TRACE_DECODER_RECORD_OCCUPANCY)
+        else if(record_type_id == ROCPROFILER_THREAD_TRACE_DECODER_RECORD_OCCUPANCY)
         {
-            auto* occupancy = static_cast<occupancy_t*>(trace_events);
-            for (size_t i=0; i<trace_size; i++)
+            for(size_t i = 0; i < trace_size; i++)
             {
                 auto& event    = static_cast<occupancy_t*>(trace_events)[i];
                 event.flags    = static_cast<uint8_t>(event.reserved);
@@ -254,7 +252,7 @@ trace_callback(rocprofiler_thread_trace_decoder_record_type_t record_type_id,
         }
     }
 
-    trace_data->cb(record_type_id, &gfxip_major, 1, trace_data->userdata);
+    trace_data->cb(record_type_id, trace_events, trace_size, trace_data->userdata);
 
     return ROCPROFILER_THREAD_TRACE_DECODER_STATUS_SUCCESS;
 }
