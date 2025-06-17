@@ -33,6 +33,13 @@
  */
 
 /**
+ * @brief Describes a timestamp in shader clock units.
+ * TS==0 marks the start of the trace on a shader engine.
+ * Different shader engines may have different frequencies or start points.
+ */
+typedef int64_t rocprofiler_shader_timestamp_t;
+
+/**
  * @brief Describes the type of info received.
  */
 typedef enum rocprofiler_thread_trace_decoder_info_t
@@ -57,28 +64,34 @@ typedef struct rocprofiler_thread_trace_decoder_pc_t
  */
 typedef struct rocprofiler_thread_trace_decoder_perfevent_t
 {
-    int64_t  time;     ///< Shader clock timestamp in which these counters were read.
-    uint16_t events0;  ///< Counter0 (bank==0) or Counter4 (bank==1).
-    uint16_t events1;  ///< Counter1 (bank==0) or Counter5 (bank==1).
-    uint16_t events2;  ///< Counter2 (bank==0) or Counter6 (bank==1).
-    uint16_t events3;  ///< Counter3 (bank==0) or Counter7 (bank==1).
-    uint8_t  CU;       ///< Shader compute unit ID these counters were collected from.
-    uint8_t  bank;     ///< Selects counter group [0,3] or [4,7]
+    rocprofiler_shader_timestamp_t time;
+
+    uint16_t event0;  //< Counter0 (bank==0) or Counter4 (bank==1).
+    uint16_t event1;  //< Counter1 (bank==0) or Counter5 (bank==1).
+    uint16_t event2;  //< Counter2 (bank==0) or Counter6 (bank==1).
+    uint16_t event3;  //< Counter3 (bank==0) or Counter7 (bank==1).
+    uint8_t  CU;      ///< Shader compute unit ID these counters were collected from.
+    uint8_t  bank;    ///< Selects counter group [0,3] or [4,7]
 } rocprofiler_thread_trace_decoder_perfevent_t;
+
+typedef enum rocprofiler_thread_trace_decoder_occupancy_flags_t
+{
+    ROCPROFILER_THREAD_TRACE_DECODER_OCCUPANCY_FLAGS_WAVE_START = 1 << 0,  // If not set, it's wave end
+} rocprofiler_thread_trace_decoder_occupancy_flags_t;
 
 /**
  * @brief Describes an occupancy event (wave started or wave ended).
  */
 typedef struct rocprofiler_thread_trace_decoder_occupancy_t
 {
-    rocprofiler_thread_trace_decoder_pc_t pc;        ///< Wave start address (kernel entry point)
-    uint64_t                              time;      ///< Timestamp of event
-    uint8_t                               reserved;  ///< Reserved
-    uint8_t                               cu;        ///< Compute unit ID (gfx9) or WGP ID (gfx10+).
-    uint8_t                               simd;      ///< SIMD ID [0,3] within compute unit
-    uint8_t                               slot;      ///< Wave slot ID within SIMD
-    uint32_t                              start : 1;  ///< 1 if wave_start, 0 if a wave_end
-    uint32_t                              _rsvd : 31;
+    rocprofiler_thread_trace_decoder_pc_t pc;         ///< Wave start address (kernel entry point)
+    rocprofiler_shader_timestamp_t        time;       ///< Timestamp of event
+
+    uint8_t  flags;  ///< One of rocprofiler_thread_trace_decoder_occupancy_flags_t
+    uint8_t  cu;     ///< Compute unit ID (gfx9) or WGP ID (gfx10+)
+    uint8_t  simd;   ///< SIMD ID [0,3] within compute unit
+    uint8_t  slot;   ///< Wave slot ID within SIMD
+    uint32_t reserved;
 } rocprofiler_thread_trace_decoder_occupancy_t;
 
 /**
@@ -127,17 +140,23 @@ typedef enum rocprofiler_thread_trace_decoder_inst_category_t
 /**
  * @brief Describes an instruction execution event.
  *
- * The duration is measured as stall+issue time (gfx9) or stall+execution time (gfx10+).
- * Time + duration marks the issue (gfx9) or execution (gfx10+) completion time.
- * Time + stall marks the successful issue time.
- * Duration - stall is the issue time (gfx9) or execution time (gfx10+).
+ * Bitfields defined exec_time and category
+ *
+ * Exec time is defined differently for different architectures:
+ * ::exec == issue time (gfx9) or ::exec == completion time (gfx10+)
+ *
+ * ::time marks when the wave first attempted to execute this instruction
+ * ::time + ::duration marks the issue completion (gfx9) or completion (gfx10+) time
+ * ::time + stall marks when the wave first attempted to issue the instruction (when ::exec begins)
+ * Stalled time can be computed as: ::duration - ::exec
  */
 typedef struct rocprofiler_thread_trace_decoder_inst_t
 {
-    uint32_t category : 8;   ///< One of rocprofiler_thread_trace_decoder_inst_category_t
-    uint32_t stall    : 24;  ///< Stall duration, in clock cycles.
-    int32_t  duration;       ///< Total instruction duration, in clock cycles.
-    int64_t  time;           ///< When the wave first attempted to execute this instruction.
+    uint8_t  category;
+    uint8_t  reserved;
+    uint16_t exec;
+    int32_t  duration;  ///< Total instruction duration, in clock cycles. Stall + Exec
+    rocprofiler_shader_timestamp_t        time;
     rocprofiler_thread_trace_decoder_pc_t pc;
 } rocprofiler_thread_trace_decoder_inst_t;
 
@@ -159,8 +178,8 @@ typedef struct rocprofiler_thread_trace_decoder_wave_t
     uint32_t _rsvd2;
     uint32_t _rsvd3;
 
-    int64_t begin_time;  ///< Wave begin time. Should match occupancy event wave start.
-    int64_t end_time;    ///< Wave end time. Should match occupancy event wave end.
+    rocprofiler_shader_timestamp_t begin_time;  ///< Wave begin time. Should match occupancy event wave start.
+    rocprofiler_shader_timestamp_t end_time;    ///< Wave end time. Should match occupancy event wave end.
 
     size_t                                         timeline_size;      ///< timeline_array size
     size_t                                         instructions_size;  ///< instructions_array size

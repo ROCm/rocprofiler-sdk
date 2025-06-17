@@ -24,6 +24,13 @@
 
 #include <rocprofiler-sdk/experimental/thread-trace/trace_decoder_types.h>
 
+#define TTD_MAKE_VERSION(x, y) ((x) << 16) | (y)
+
+#define TTD_API_VERSION_MAJOR 0
+#define TTD_API_VERSION_MINOR 2
+
+#define TTD_API_VERSION TTD_MAKE_VERSION(TTD_API_VERSION_MAJOR, TTD_API_VERSION_MINOR)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -125,6 +132,8 @@ rocprof_trace_decoder_dump_data(const char*                                     
                                 size_t                                            data_size,
                                 rocprofiler_thread_trace_decoder_debug_callback_t cb,
                                 void*                                             userdata);
+
+void rocprof_trace_decoder_get_version(uint64_t* major, uint64_t* minor, uint64_t* revision);
 
 #ifdef __cplusplus
 }

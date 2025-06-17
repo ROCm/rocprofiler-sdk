@@ -48,10 +48,15 @@ public:
                att_status_fn != nullptr;
     };
 
-    ParseFn*  att_parse_data_fn = nullptr;
-    InfoFn*   att_info_fn       = nullptr;
-    StatusFn* att_status_fn     = nullptr;
-    void*     handle            = nullptr;
+    ParseFn*  parse_fn  = nullptr;
+    InfoFn*   info_fn   = nullptr;
+    StatusFn* status_fn = nullptr;
+    void*     handle    = nullptr;
+
+    uint64_t version_major = 0;
+    uint64_t version_minor = 0;
+    uint64_t version_patch = 0;
+    uint64_t version       = 0;
 };
 
 }  // namespace thread_trace

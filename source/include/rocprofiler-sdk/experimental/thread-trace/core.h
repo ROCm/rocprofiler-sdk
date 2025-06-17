@@ -66,7 +66,7 @@ typedef struct rocprofiler_thread_trace_parameter_t
         struct
         {
             rocprofiler_counter_id_t counter_id;
-            uint64_t                 simd_mask : 4;
+            uint8_t                  simd_mask;
         };
     };
 } rocprofiler_thread_trace_parameter_t;
