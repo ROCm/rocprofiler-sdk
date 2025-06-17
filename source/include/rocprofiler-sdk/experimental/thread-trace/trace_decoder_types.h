@@ -76,8 +76,7 @@ typedef struct rocprofiler_thread_trace_decoder_perfevent_t
 
 typedef enum rocprofiler_thread_trace_decoder_occupancy_flags_t
 {
-    ROCPROFILER_THREAD_TRACE_DECODER_OCCUPANCY_FLAGS_WAVE_START =
-        1 << 0,  // If not set, it's wave end
+    ROCPROFILER_THREAD_TRACE_DECODER_OCCUPANCY_FLAGS_WAVE_START = 1 << 0,  // set -> is wave start
 } rocprofiler_thread_trace_decoder_occupancy_flags_t;
 
 /**
@@ -88,7 +87,7 @@ typedef struct rocprofiler_thread_trace_decoder_occupancy_t
     rocprofiler_thread_trace_decoder_pc_t pc;    ///< Wave start address (kernel entry point)
     rocprofiler_shader_timestamp_t        time;  ///< Timestamp of event
 
-    uint8_t  flags;  ///< One of rocprofiler_thread_trace_decoder_occupancy_flags_t
+    uint8_t  flags;  ///< See ::rocprofiler_thread_trace_decoder_occupancy_flags_t
     uint8_t  cu;     ///< Compute unit ID (gfx9) or WGP ID (gfx10+)
     uint8_t  simd;   ///< SIMD ID [0,3] within compute unit
     uint8_t  slot;   ///< Wave slot ID within SIMD
