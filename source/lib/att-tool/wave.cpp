@@ -64,7 +64,7 @@ WaveFile::WaveFile(WaveConfig& config, const wave_t& wave)
         auto& inst = wave.instructions_array[i];
         instructions.push_back({inst.time,
                                 static_cast<int>(inst.category),
-                                static_cast<int>(inst.stall),
+                                static_cast<int>(inst.duration - inst.exec),
                                 static_cast<int64_t>(inst.duration),
                                 config.code->line_numbers[inst.pc]});
     }

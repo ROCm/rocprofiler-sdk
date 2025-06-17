@@ -87,7 +87,7 @@ get_trace_data(rocprofiler_thread_trace_decoder_record_type_t trace_id,
                 auto& line = tool.get(inst.pc);
                 line.hitcount += 1;
                 line.latency += inst.duration;
-                line.stall += inst.stall;
+                line.stall += inst.duration - inst.exec;
                 line.idle += std::max<int64_t>(inst.time - prev_inst_time, 0);
             } catch(...)
             {
