@@ -208,6 +208,7 @@ Full documentation for ROCprofiler-SDK is available at [rocm.docs.amd.com/projec
 - Fixed potential data race in rocprofiler-sdk double buffering scheme
 - Usage of std::regex in core rocprofiler-sdk library which causes segfaults/exceptions when used under dual ABI
 - Fixed perfetto counter collection by introducing per dispatch accumulation.
+- Removed bitfields of Thread trace API for better ABI compatibility
 
 ### Removed
 
