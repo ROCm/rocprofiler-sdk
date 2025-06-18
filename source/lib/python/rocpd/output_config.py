@@ -160,7 +160,7 @@ def add_generic_args(parser):
     generic_options.add_argument(
         "--agent-index-value",
         choices=("absolute", "relative", "type-relative"),
-        help="""Device identification format in CSV/Perfetto/OTF2 output (default: relative):
+        help="""Device identification format in CSV/Perfetto/OTF2/CTF2 output (default: relative):
         absolute: uses node_id (Agent-0, Agent-2, Agent-4) ignoring cgroups restrictions.
         relative: uses logical_node_id (Agent-0, Agent-1, Agent-2) considering cgroups restrictions.
         type-relative: uses logical_node_type_id (CPU-0, GPU-0, GPU-1) with numbering that resets for each device type.""",

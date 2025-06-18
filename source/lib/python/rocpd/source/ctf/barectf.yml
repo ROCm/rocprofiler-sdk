@@ -1,0 +1,128 @@
+# barectf.yml
+version: "2.0"
+
+metadata:
+  trace:
+    byte-order: le
+
+  clocks:
+    default:
+      freq: 1000000000
+
+  streams:
+    default:
+      event-header-type:
+        class: struct
+        fields:
+          id:
+            class: integer
+            size: 8
+          timestamp:
+            class: integer
+            size: 64
+            property-mappings:
+              - type: clock
+                name: default
+                property: value
+      packet-context-type:
+        class: struct
+        fields:
+          packet_size:
+            class: integer
+            size: 64
+          content_size:
+            class: integer
+            size: 64
+          events_discarded:
+            class: int
+            size: 16
+      events:
+        api:
+          payload-type:
+            class: struct
+            fields:
+              phase:
+                class: integer
+                size: 8
+              pid:
+                class: integer
+                size: 64
+              name:
+                class: string
+              ancestor_correlation_id:
+                class: integer
+                size: 64
+              internal_correlation_id:
+                class: integer
+                size: 64
+              timestamp:
+                class: integer
+                size: 64
+              thread_id:
+                class: integer
+                size: 64
+
+        kernel_dispatch:
+          payload-type:
+            class: struct
+            fields:
+              phase:
+                class: integer
+                size: 8
+              pid:
+                class: integer
+                size: 64
+              internal_correlation_id:
+                class: integer
+                size: 64
+              timestamp:
+                class: integer
+                size: 64
+              thread_id:
+                class: integer
+                size: 64
+              agent_node_id:
+                class: integer
+                size: 64
+              queue_id:
+                class: integer
+                size: 64
+              stream_id:
+                class: integer
+                size: 64
+              kernel_name:
+                class: string
+
+        memory_copy:
+          payload-type:
+            class: struct
+            fields:
+              phase:
+                class: integer
+                size: 8
+              pid:
+                class: integer
+                size: 64
+              operation:
+                class: string
+              internal_correlation_id:
+                class: integer
+                size: 64
+              timestamp:
+                class: integer
+                size: 64
+              thread_id:
+                class: integer
+                size: 64
+              src_agent_node_id:
+                class: integer
+                size: 64
+              dst_agent_node_id:
+                class: integer
+                size: 64
+              stream_id:
+                class: integer
+                size: 64
+              size:
+                class: integer
+                size: 64

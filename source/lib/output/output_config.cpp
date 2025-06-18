@@ -78,11 +78,12 @@ output_config::parse_env()
     json_output    = entries.count("JSON") > 0;
     pftrace_output = entries.count("PFTRACE") > 0;
     otf2_output    = entries.count("OTF2") > 0;
+    ctf2_output    = entries.count("CTF2") > 0;
     rocpd_output   = entries.count("ROCPD") > 0 || entries.empty();
     lttng_output   = entries.count("LTTNG") > 0;
 
     const auto supported_formats =
-        std::set<std::string_view>{"CSV", "JSON", "PFTRACE", "OTF2", "ROCPD", "LTTNG"};
+        std::set<std::string_view>{"CSV", "JSON", "PFTRACE", "OTF2", "ROCPD", "LTTNG", "CTF2"};
     for(const auto& itr : entries)
     {
         LOG_IF(FATAL, supported_formats.count(itr) == 0)

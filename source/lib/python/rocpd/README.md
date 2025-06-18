@@ -6,7 +6,7 @@ collected with the ROCm profiling tools suite.
 ## Background
 
 In the past, the ROCm profiling tools (e.g. rocprofv3, rocprofiler-systems, etc.) have directly written data to
-various output formats such as CSV, JSON, Perfetto, OTF2, etc. This approach has a significant number of flaws:
+various output formats such as CSV, JSON, Perfetto, OTF2, CTF2, etc. This approach has a significant number of flaws:
 
 ### No standardization in the CSV and JSON output formats
 

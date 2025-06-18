@@ -45,6 +45,7 @@ __all__ = [
     "write_perfetto",
     "write_csv",
     "write_otf2",
+    "write_ctf2",
     "RocpdImportData",
 ]
 
@@ -147,3 +148,26 @@ def write_otf2(connection, config=None, **kwargs):
     )
 
     return libpyrocpd.write_otf2(connection, config)
+
+def write_ctf2(connection, config=None, **kwargs):
+    """
+    Write CTF@ output file
+
+    Args:
+        connection (rocpd.RocpdImportData):
+            rocPD instance of database connection(s)
+        config (rocpd.output_config.output_config):
+            Output specification
+
+    Returns:
+        bool: returns True if successful
+    """
+    from . import output_config
+
+    config = (
+        output_config.output_config(**kwargs)
+        if config is None
+        else config.update(**kwargs)
+    )
+
+    return libpyrocpd.write_ctf2(connection, config)

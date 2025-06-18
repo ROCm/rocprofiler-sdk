@@ -9,12 +9,15 @@ set(libpyrocpd_source_headers
     perfetto.hpp
     csv.hpp
     otf2.hpp
+    ctf2.hpp
     sql_generator.hpp
     pysqlite_Connection.h
-    types.hpp)
+    types.hpp
+    ctf/barectf.h
+    ctf/barectf-bitfield.h)
 
-set(libpyrocpd_source_sources csv.cpp functions.cpp interop.cpp otf2.cpp perfetto.cpp
-                              types.cpp)
+set(libpyrocpd_source_sources csv.cpp functions.cpp interop.cpp otf2.cpp ctf2.cpp perfetto.cpp
+                              types.cpp ctf/barectf.c)
 
 foreach(_PYTHON_VERSION ${ROCPROFILER_PYTHON_VERSIONS})
     rocprofiler_rocpd_python_bindings_target_sources(

@@ -43,6 +43,7 @@ def main(argv=None, config=None):
     from . import pftrace
     from . import csv
     from . import otf2
+    from . import ctf2
     from .importer import RocpdImportData
 
     convert_examples = """
@@ -94,10 +95,10 @@ Example usage:
     required_params.add_argument(
         "-f",
         "--output-format",
-        help="For adding output format (supported formats: csv, pftrace, otf2)",
+        help="For adding output format (supported formats: csv, pftrace, otf2, ctf2)",
         nargs="+",
         default=None,
-        choices=("csv", "pftrace", "otf2"),
+        choices=("csv", "pftrace", "otf2", "ctf2"),
         type=get_output_type,
         required=True,
     )
@@ -108,6 +109,7 @@ Example usage:
     valid_pftrace_args = pftrace.add_args(converter)
     valid_csv_args = csv.add_args(converter)
     valid_otf2_args = otf2.add_args(converter)
+    valid_ctf2_args = ctf2.add_args(converter)
     valid_time_window_args = time_window.add_args(converter)
 
     # parse the command line arguments
@@ -119,6 +121,7 @@ Example usage:
     pftrace_args = pftrace.process_args(args, valid_pftrace_args)
     csv_args = csv.process_args(args, valid_csv_args)
     otf2_args = otf2.process_args(args, valid_otf2_args)
+    ctf2_args = ctf2.process_args(args, valid_ctf2_args)
     window_args = time_window.process_args(args, valid_time_window_args)
 
     # now start processing the data.  Import the data and merge the views
@@ -134,6 +137,7 @@ Example usage:
         **pftrace_args,
         **csv_args,
         **otf2_args,
+        **ctf2_args,
     }
     # setup the config args
     config = (
@@ -147,6 +151,7 @@ Example usage:
         "pftrace": pftrace.write_pftrace,
         "csv": csv.write_csv,
         "otf2": otf2.write_otf2,
+        "ctf2": ctf2.write_ctf2,
     }
 
     for out_format in args.output_format:
