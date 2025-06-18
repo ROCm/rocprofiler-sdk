@@ -70,7 +70,7 @@ WaveFile::WaveFile(WaveConfig& config, const wave_t& wave)
     }
 
     nlohmann::json timeline;
-    int64_t        acc_time = wave.start_time;
+    auto        acc_time = wave.start_time;
 
     for(size_t i = 0; i < wave.timeline_size; i++)
     {

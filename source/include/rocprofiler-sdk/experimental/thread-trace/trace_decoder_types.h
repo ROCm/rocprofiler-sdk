@@ -70,7 +70,7 @@ typedef struct rocprofiler_thread_trace_decoder_perfevent_t
     uint16_t event1;  //< Counter1 (bank==0) or Counter5 (bank==1).
     uint16_t event2;  //< Counter2 (bank==0) or Counter6 (bank==1).
     uint16_t event3;  //< Counter3 (bank==0) or Counter7 (bank==1).
-    uint8_t  CU;      ///< Shader compute unit ID these counters were collected from.
+    uint8_t  cu;      ///< Shader compute unit ID these counters were collected from.
     uint8_t  bank;    ///< Selects counter group [0,3] or [4,7]
 } rocprofiler_thread_trace_decoder_perfevent_t;
 
