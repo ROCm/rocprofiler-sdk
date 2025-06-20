@@ -32,9 +32,9 @@ namespace thread_trace
 {
 class DL
 {
-    using ParseFn  = decltype(rocprof_trace_decoder_parse_data);
-    using InfoFn   = decltype(rocprof_trace_decoder_get_info_string);
-    using StatusFn = decltype(rocprof_trace_decoder_get_status_string);
+    using parse_fn_t  = decltype(rocprof_trace_decoder_parse_data);
+    using info_fn_t   = decltype(rocprof_trace_decoder_get_info_string);
+    using status_fn_t = decltype(rocprof_trace_decoder_get_status_string);
 
 public:
     DL(const char* libpath);
@@ -44,18 +44,17 @@ public:
 
     bool valid() const
     {
-        return handle != nullptr && parse_fn != nullptr && info_fn != nullptr &&
-               status_fn != nullptr;
+        return handle != nullptr && parse != nullptr && info != nullptr && status != nullptr;
     };
 
-    ParseFn*  parse_fn  = nullptr;
-    InfoFn*   info_fn   = nullptr;
-    StatusFn* status_fn = nullptr;
-    void*     handle    = nullptr;
+    parse_fn_t*  parse  = nullptr;
+    info_fn_t*   info   = nullptr;
+    status_fn_t* status = nullptr;
+    void*        handle = nullptr;
 
-    uint64_t version_major = 0;
-    uint64_t version_minor = 0;
-    uint64_t version_patch = 0;
+    uint32_t version_major = 0;
+    uint32_t version_minor = 0;
+    uint32_t version_patch = 0;
     uint64_t version       = 0;
 };
 

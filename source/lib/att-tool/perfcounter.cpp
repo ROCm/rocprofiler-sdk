@@ -43,11 +43,11 @@ PerfcounterFile(WaveConfig& config, const perfevent_t* events, size_t event_coun
 
         nlohmann::json json_event;
         json_event.push_back(event.time);
-        json_event.push_back(event.events0);
-        json_event.push_back(event.events1);
-        json_event.push_back(event.events2);
-        json_event.push_back(event.events3);
-        json_event.push_back(event.CU);
+        json_event.push_back(event.event0);
+        json_event.push_back(event.event1);
+        json_event.push_back(event.event2);
+        json_event.push_back(event.event3);
+        json_event.push_back(event.cu);
         json_event.push_back(event.bank);
 
         data.push_back(json_event);

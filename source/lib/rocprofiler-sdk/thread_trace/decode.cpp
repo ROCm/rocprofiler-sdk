@@ -246,7 +246,7 @@ trace_callback(rocprofiler_thread_trace_decoder_record_type_t record_type_id,
             for(size_t i = 0; i < trace_size; i++)
             {
                 auto& event    = static_cast<occupancy_t*>(trace_events)[i];
-                event.flags    = static_cast<uint8_t>(event.reserved);
+                event.start    = event.reserved == 0 ? 0 : 1;
                 event.reserved = 0;
             }
         }
@@ -276,10 +276,10 @@ rocprofiler_trace_decode(rocprofiler_thread_trace_decoder_handle_t   handle,
                         .cb       = user_callback,
                         .userdata = userdata};
 
-    auto status = decoder->dl->parse_fn(copy_trace_data, trace_callback, isa_callback, &cbdata);
+    auto status = decoder->dl->parse(copy_trace_data, trace_callback, isa_callback, &cbdata);
     if(status != ROCPROFILER_THREAD_TRACE_DECODER_STATUS_SUCCESS)
     {
-        const char* statustr = decoder->dl->status_fn(status);
+        const char* statustr = decoder->dl->status(status);
         if(statustr == nullptr) statustr = "Unknown error";
         ROCP_ERROR << "Callback failed with status " << status << ": " << statustr;
 
@@ -301,6 +301,6 @@ rocprofiler_thread_trace_decoder_info_string(rocprofiler_thread_trace_decoder_ha
     auto decoder = get_dl(handle);
     if(decoder == nullptr) return nullptr;
 
-    return decoder->dl->info_fn(info);
+    return decoder->dl->info(info);
 }
 }
