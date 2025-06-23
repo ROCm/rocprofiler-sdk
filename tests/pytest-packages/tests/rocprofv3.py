@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 from __future__ import absolute_import
+import re
 
 
 def test_perfetto_data(
@@ -98,7 +99,9 @@ def test_perfetto_data(
 
 
 def test_otf2_data(
-    otf2_data, json_data, categories=("hip", "hsa", "marker", "kernel", "memory_copy")
+    otf2_data,
+    json_data,
+    categories=("hip", "hsa", "kernel", "memory_allocation", "memory_copy"),
 ):
     def get_operation_name(kind_id, op_id):
         return json_data["rocprofiler-sdk-tool"]["strings"]["buffer_records"][kind_id][
@@ -145,6 +148,57 @@ def test_otf2_data(
                 )
 
             _json_data = [itr for itr in _json_data if roctx_mark_filter(itr) is not None]
+
+        if json_category == "memory_allocation":
+            _json_data_alloc = [itr for itr in _json_data if itr["operation"] == 1]
+            _json_data_free = [itr for itr in _json_data if itr["operation"] == 3]
+            _otf2_data_alloc = _otf2_data.loc[
+                _otf2_data["name"] == "MEMORY_ALLOCATION_ALLOCATE"
+            ]
+            _otf2_data_free = _otf2_data.loc[
+                _otf2_data["name"] == "MEMORY_ALLOCATION_FREE"
+            ]
+            assert len(_otf2_data_alloc) == len(
+                _json_data_alloc
+            ), f"memory_allocation allocate otf2 ({len(_otf2_data_alloc)}):\n\t{_otf2_data_alloc} \n json ({len(_json_data_alloc)}):\n\t{_json_data_alloc}"
+            assert len(_otf2_data_free) == len(
+                _json_data_free
+            ), f"memory_allocation free otf2 ({len(_otf2_data_free)}):\n\t{_otf2_data_free} \n json ({len(_json_data_free)}):\n\t{_json_data_free}"
+
+            # problematic timing of free, not seen on visualisation
+            # select the first thread where free is reported, order by start time json and otf2 2 data for this thread and compare time stamps one by one
+            # testing max two threads
+            max_thr = 2
+            for ind_thr in range(max_thr):
+                if len(_otf2_data_free) > ind_thr:
+                    loc_name = _otf2_data_free.iloc[ind_thr]["location"].name
+                    thread_id = int(re.match(r"Thread (\d+)", loc_name).group(1))
+                    # hope this is ordered by ts
+                    _json_data_free_inthread = [
+                        itr for itr in _json_data_free if itr["thread_id"] == thread_id
+                    ]
+                    _otf2_data_free_inthread = []
+                    i = 0
+                    for i in range(len(_otf2_data_free)):
+                        _loc_name = _otf2_data_free.iloc[i]["location"].name
+                        _thread_id = int(re.match(r"Thread (\d+)", _loc_name).group(1))
+                        if _thread_id == thread_id:
+                            _otf2_data_free_inthread.append(_otf2_data_free.iloc[i])
+                    assert len(_otf2_data_free_inthread) == len(
+                        _json_data_free_inthread
+                    ), f"thread {thread_id}, memory_allocation free otf2 ({len(_otf2_data_free_inthread)}):\n\t{_otf2_data_free_inthread} \n json ({len(_json_data_free_inthread)}):\n\t{_json_data_free_inthread}"
+                    i = 0
+                    for i in range(len(_otf2_data_free_inthread)):
+                        _otf2_s_ts = _otf2_data_free_inthread[i]["start_ts"]
+                        _otf2_e_ts = _otf2_data_free_inthread[i]["end_ts"]
+                        _json_s_ts = _json_data_free_inthread[i]["start_timestamp"]
+                        _json_e_ts = _json_data_free_inthread[i]["end_timestamp"]
+                        assert (
+                            _otf2_s_ts == _json_s_ts
+                        ), f"memory_allocation free otf2 record {i} start timestamp ({_otf2_s_ts}):\n\t{_otf2_data_free_inthread[i]} \n json start ts({_json_e_ts}):\n\t{_json_data_free_inthread[i]}"
+                        assert (
+                            _otf2_e_ts == _json_e_ts
+                        ), f"memory_allocation free otf2 record {i} end timestamp ({_otf2_e_ts}):\n\t{_otf2_data_free_inthread[i]} \n json end ts({_json_e_ts}):\n\t{_json_data_free_inthread[i]}"
 
         assert len(_otf2_data) == len(
             _json_data

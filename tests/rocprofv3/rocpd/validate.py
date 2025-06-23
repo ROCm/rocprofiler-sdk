@@ -26,24 +26,36 @@ import sys
 import pytest
 
 
+# todo: MP make pftrace data a list and remove json[0]
 def test_perfetto_data(pftrace_data, json_data):
     import rocprofiler_sdk.tests.rocprofv3 as rocprofv3
 
     rocprofv3.test_perfetto_data(
-        pftrace_data,
-        json_data,
+        pftrace_data,  # not a list
+        json_data[0],
         ("hip", "marker", "kernel", "memory_copy"),
     )
 
 
+# the approach works when each rocpd data base and each json file contains data for 1 process
 def test_otf2_data(otf2_data, json_data):
     import rocprofiler_sdk.tests.rocprofv3 as rocprofv3
 
-    rocprofv3.test_otf2_data(
-        otf2_data,
-        json_data,
-        ("hip", "marker", "kernel", "memory_copy", "memory_allocation"),
-    )
+    j = 0  # counting json structures in linear list json_data
+    for reader, data_frames in otf2_data.items():
+        print(f"\n Otf2 file reader: {reader}\n")
+        assert len(data_frames) == len(
+            json_data
+        ), f"# {len(data_frames)} of otf2 data collections (a collection per process), differs from the # {len(json_data)} of json data collections"
+
+        for _df in data_frames:
+            print(f"\n  json index {j}\n")
+            rocprofv3.test_otf2_data(
+                _df,
+                json_data[j],
+                ("hip", "marker", "kernel", "memory_copy", "memory_allocation"),
+            )
+            j += 1
 
 
 if __name__ == "__main__":

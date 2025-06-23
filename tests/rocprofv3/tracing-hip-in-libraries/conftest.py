@@ -242,4 +242,4 @@ def pftrace_data(request):
 @pytest.fixture
 def otf2_data(request):
     filename = request.config.getoption("--otf2-input")
-    return OTF2Reader(filename).read()[0]
+    return list(OTF2Reader(filename).read().values())[0][0]

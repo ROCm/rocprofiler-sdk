@@ -36,8 +36,16 @@ from rocprofiler_sdk.pytest_utils.otf2_reader import OTF2Reader
 
 def pytest_addoption(parser):
     parser.addoption(
+        "--skip",
+        action="store",
+        nargs="+",
+        help="list of outputy type to exclude from testing",
+    )
+
+    parser.addoption(
         "--json-input",
         action="store",
+        nargs="+",
         help="Path to JSON file.",
     )
     parser.addoption(
@@ -62,11 +70,17 @@ def pytest_addoption(parser):
         pd.set_option(f"display.max_{itr}", None)
 
 
+# returns a list of json structures: a json structure per db/process
 @pytest.fixture
 def json_data(request):
-    filename = request.config.getoption("--json-input")
-    with open(filename, "r") as inp:
-        return dotdict(collapse_dict_list(json.load(inp)))
+    filenames = request.config.getoption("--json-input")
+    ret_val = []
+    for filename in filenames:
+        if not os.path.exists(filename):
+            raise FileExistsError(f"{filename} does not exist")
+        with open(filename, "r") as inp:
+            ret_val.append(dotdict(collapse_dict_list(json.load(inp))))
+    return ret_val
 
 
 @pytest.fixture
@@ -75,12 +89,13 @@ def pftrace_data(request):
     return PerfettoReader(filename).read()[0]
 
 
+# returns a list of data frames of otf2 data coming from several processes, written in a single file with index 0: a data frame per process
 @pytest.fixture
 def otf2_data(request):
     filename = request.config.getoption("--otf2-input")
     if not os.path.exists(filename):
         raise FileExistsError(f"{filename} does not exist")
-    return OTF2Reader(filename).read()[0]
+    return OTF2Reader(filename).read()
 
 
 @pytest.fixture
@@ -133,3 +148,14 @@ def summary_data(request):
     process_current_domain(current_name, current_list)
 
     return domains
+
+
+def pytest_collection_modifyitems(config, items):
+    tests_to_skip = config.getoption("--skip")
+    if not tests_to_skip:
+        # --skip not given in cli, therefore move on
+        return
+    skip_listed = pytest.mark.skip(reason="included in --skiplist")
+    for item in items:
+        if item.name in tests_to_skip:
+            item.add_marker(skip_listed)

@@ -139,6 +139,9 @@ archive_t*            archive           = nullptr;
 auto                  flush_callbacks   = OTF2_FlushCallbacks{pre_flush, post_flush};
 OTF2_GlobalDefWriter* global_def_writer = nullptr;  // shared between data bases  (processes)
 
+hash_map_t hash_data     = {};  // shared definition dictionary between data bases  and nodes
+auto       existing_hash = std::unordered_set<size_t>{};
+
 enum rocprofiler_location_type_t
 {
     ROCPROFILER_AGENT_NO_TYPE = 0,
@@ -300,6 +303,16 @@ add_event(std::string_view             name,
 }
 
 void
+add_write_string(size_t _hash, std::string_view _name_strv)
+{
+    if(_hash > 0 && existing_hash.count(_hash) == 0)
+    {
+        OTF2_CHECK(OTF2_GlobalDefWriter_WriteString(global_def_writer, _hash, _name_strv.data()));
+        existing_hash.emplace(_hash);
+    }
+};
+
+void
 setup(const rocprofiler::tool::output_config& cfg, uint64_t min_start, uint64_t max_fini)
 {
     namespace fs = rocprofiler::common::filesystem;
@@ -345,28 +358,14 @@ setup(const rocprofiler::tool::output_config& cfg, uint64_t min_start, uint64_t 
 
     OTF2_CHECK(OTF2_GlobalDefWriter_WriteString(global_def_writer, 0, ""));
 
-    auto add_write_string = [](size_t _hash, std::string_view _name_strv) {
-        static auto _existing = std::unordered_set<size_t>{};
-        if(_hash > 0 && _existing.count(_hash) == 0)
-        {
-            OTF2_CHECK(
-                OTF2_GlobalDefWriter_WriteString(global_def_writer, _hash, _name_strv.data()));
-            _existing.emplace(_hash);
-        }
-    };
-
-    auto add_write_string_val = [&add_write_string](std::string_view _name_v) {
-        auto _hash_v = get_hash_id(_name_v);
-        add_write_string(_hash_v, _name_v);
-        return _hash_v;
-    };
-
     //(must be shared between processes)
-    auto _attr_name = std::string_view{"category"};
-    auto _attr_desc = std::string_view{"tracing category"};
+    auto _attr_name      = std::string_view{"category"};
+    auto _attr_name_hash = get_hash_id(_attr_name);
+    add_write_string(_attr_name_hash, _attr_name);
 
-    auto _attr_name_hash = add_write_string_val(_attr_name);
-    auto _attr_desc_hash = add_write_string_val(_attr_desc);
+    auto _attr_desc      = std::string_view{"tracing category"};
+    auto _attr_desc_hash = get_hash_id(_attr_desc);
+    add_write_string(_attr_desc_hash, _attr_desc);
 
     OTF2_CHECK(OTF2_GlobalDefWriter_WriteAttribute(
         global_def_writer, 0, _attr_name_hash, _attr_desc_hash, OTF2_TYPE_STRING));
@@ -428,17 +427,16 @@ write_otf2(const OTF2Session&                                  otf2_session,
            const tool::generator<types::memory_copies>&        memory_copy_gen,
            const tool::generator<types::memory_allocation>&    memory_allocation_gen)
 {
-    const uint64_t _no_agent_handle = 0;
-    // std::numeric_limits<uint64_t>::max() - 1;
-    const auto& ocfg = otf2_session.config;
-
-    auto _app_ts = rocprofiler::tool::timestamps_t{process.start, process.fini};
+    const auto& ocfg    = otf2_session.config;
+    auto        _app_ts = rocprofiler::tool::timestamps_t{process.start, process.fini};
 
     auto thread_event_info = std::map<pid_t, event_info>{};
     auto agent_memcpy_info =
         std::map<pid_t, std::map<uint64_t, event_info>>{};  // tid -> agent_handle ->evt
     auto agent_memalloc_info =
         std::map<pid_t, std::map<uint64_t, event_info>>{};  // // tid -> agent_handle  ->evt
+    auto mem_dealloc_info = std::map<pid_t, event_info>{};  // // tid -> evt
+    auto mem_unknown_info = std::map<pid_t, event_info>{};  // // tid -> evt
     auto agent_dispatch_info =
         std::map<pid_t,
                  std::map<uint64_t, std::map<uint64_t, event_info>>>{};  // tid -> agent_handle
@@ -468,8 +466,6 @@ write_otf2(const OTF2Session&                                  otf2_session,
             _evt_info.name = fmt::format("Thread {}", itr.tid);
             thread_event_info.emplace(itr.tid, _evt_info);
         }
-
-    auto _hash_data = hash_map_t{};
 
     struct evt_data
     {
@@ -505,8 +501,8 @@ write_otf2(const OTF2Session&                                  otf2_session,
         for(const auto& itr : api_gen.get(ditr))
         {
             std::string _name = itr.name;
-            _hash_data.emplace(get_hash_id(_name),
-                               region_info{_name, OTF2_REGION_ROLE_FUNCTION, OTF2_PARADIGM_HIP});
+            hash_data.emplace(get_hash_id(_name),
+                              region_info{_name, OTF2_REGION_ROLE_FUNCTION, OTF2_PARADIGM_HIP});
 
             auto& _evt_info = thread_event_info.at(itr.tid);
             _evt_info.event_count += 1;
@@ -534,7 +530,7 @@ write_otf2(const OTF2Session&                                  otf2_session,
         for(const auto& itr : memory_copy_gen.get(ditr))
         {
             std::string _name = itr.name;
-            _hash_data.emplace(
+            hash_data.emplace(
                 get_hash_id(_name),
                 region_info{_name, OTF2_REGION_ROLE_DATA_TRANSFER, OTF2_PARADIGM_HIP});
 
@@ -583,7 +579,7 @@ write_otf2(const OTF2Session&                                  otf2_session,
 
             if(itr.type == "ALLOC")
             {
-                _hash_data.emplace(
+                hash_data.emplace(
                     get_hash_id(_alloc_operation),
                     region_info{_alloc_operation, OTF2_REGION_ROLE_ALLOCATE, OTF2_PARADIGM_HIP});
 
@@ -615,18 +611,15 @@ write_otf2(const OTF2Session&                                  otf2_session,
             }
             else if(itr.type == "FREE")  //
             {
-                _hash_data.emplace(
+                hash_data.emplace(
                     get_hash_id(_alloc_operation),
                     region_info{_alloc_operation, OTF2_REGION_ROLE_DEALLOCATE, OTF2_PARADIGM_HIP});
+                auto _evt_info = event_info{
+                    location_base{process.pid, itr.tid, ROCPROFILER_AGENT_MEMORY_DEALLOC_TYPE}};
 
-                auto _evt_info = event_info{location_base{
-                    process.pid, itr.tid, _no_agent_handle, ROCPROFILER_AGENT_MEMORY_DEALLOC_TYPE}};
                 _evt_info.name = fmt::format("Thread {}, Memory Deallocate (Free)", itr.tid);
-
-                agent_memalloc_info[itr.tid].emplace(_no_agent_handle, _evt_info);
-
                 _evt_info.event_count += 1;
-
+                mem_dealloc_info.emplace(itr.tid, _evt_info);
                 _data.emplace_back(evt_data{ROCPROFILER_CALLBACK_PHASE_ENTER,
                                             _alloc_operation,
                                             _evt_info.get_location(),
@@ -643,7 +636,7 @@ write_otf2(const OTF2Session&                                  otf2_session,
                 auto _evt_info = event_info{location_base{process.pid, itr.tid}};
                 _evt_info.name = fmt::format("Thread {}, Memory Operation UNK", itr.tid);
                 _evt_info.event_count += 1;
-                agent_memalloc_info[itr.tid].emplace(_no_agent_handle, _evt_info);
+                mem_unknown_info.emplace(itr.tid, _evt_info);
                 _data.emplace_back(evt_data{ROCPROFILER_CALLBACK_PHASE_ENTER,
                                             _alloc_operation,
                                             _evt_info.get_location(),
@@ -663,8 +656,8 @@ write_otf2(const OTF2Session&                                  otf2_session,
         {
             auto _name = fmt::format(
                 "{}", (ocfg.kernel_rename && !itr.region.empty()) ? itr.region : itr.name);
-            _hash_data.emplace(get_hash_id(_name),
-                               region_info{_name, OTF2_REGION_ROLE_FUNCTION, OTF2_PARADIGM_HIP});
+            hash_data.emplace(get_hash_id(_name),
+                              region_info{_name, OTF2_REGION_ROLE_FUNCTION, OTF2_PARADIGM_HIP});
 
             const auto* _perfetto_name = rocprofiler::sdk::perfetto_category<
                 rocprofiler::sdk::category::kernel_dispatch>::name;
@@ -738,16 +731,13 @@ write_otf2(const OTF2Session&                                  otf2_session,
     }
     OTF2_CHECK(OTF2_Archive_CloseDefFiles(archive));
 
-    for(const auto& itr : _hash_data)
+    for(const auto& itr : hash_data)
     {
-        if(itr.first != 0)
+        if(itr.first != 0 && existing_hash.count(itr.first) == 0)
+        {
             OTF2_CHECK(OTF2_GlobalDefWriter_WriteString(
                 global_def_writer, itr.first, itr.second.name.c_str()));
-    }
 
-    for(const auto& itr : _hash_data)
-    {
-        if(itr.first != 0)
             OTF2_CHECK(OTF2_GlobalDefWriter_WriteRegion(global_def_writer,
                                                         itr.first,
                                                         itr.first,
@@ -759,16 +749,11 @@ write_otf2(const OTF2Session&                                  otf2_session,
                                                         0,
                                                         0,
                                                         0));
-    }
 
-    auto add_write_string = [](size_t _hash, std::string_view _name) {
-        static auto _existing = std::unordered_set<size_t>{};
-        if(_hash > 0 && _existing.count(_hash) == 0)
-        {
-            OTF2_CHECK(OTF2_GlobalDefWriter_WriteString(global_def_writer, _hash, _name.data()));
-            _existing.emplace(_hash);
+            // Add to the list of processed definitions
+            existing_hash.emplace(itr.first);
         }
-    };
+    }
 
     for(const auto& itr : _attr_str)
         add_write_string(itr.first, itr.second);
@@ -873,9 +858,38 @@ write_otf2(const OTF2Session&                                  otf2_session,
                                                           _hash,
                                                           OTF2_LOCATION_TYPE_ACCELERATOR_STREAM,
                                                           2 * evt.event_count,  // # events
-                                                          agent_handle          // location group
-                                                          ));
+                                                          agent_handle)         // location group
+            );
         }
+    }
+
+    // Mem-free events
+    for(auto& [tid, evt] : mem_dealloc_info)
+    {
+        auto _hash = get_hash_id(evt.name);
+
+        add_write_string(_hash, evt.name);
+        OTF2_CHECK(OTF2_GlobalDefWriter_WriteLocation(global_def_writer,
+                                                      evt.id(),  // id
+                                                      _hash,
+                                                      OTF2_LOCATION_TYPE_UNKNOWN,
+                                                      2 * evt.event_count,
+                                                      tree_node_id  // location group
+                                                      ));
+    }
+
+    // Mem-unknown events
+    for(auto& [tid, evt] : mem_unknown_info)
+    {
+        auto _hash = get_hash_id(evt.name);
+
+        add_write_string(_hash, evt.name);
+        OTF2_CHECK(OTF2_GlobalDefWriter_WriteLocation(global_def_writer,
+                                                      evt.id(),  // id
+                                                      _hash,
+                                                      OTF2_LOCATION_TYPE_UNKNOWN,
+                                                      2 * evt.event_count,
+                                                      tree_node_id));
     }
 
     // Dispatch Events

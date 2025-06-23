@@ -72,11 +72,13 @@ class Region(object):
 
 
 class OTF2Reader:
-    """Read in perfetto protobuf output"""
+    """Read in otf2 output"""
 
     def __init__(self, filename):
         self.filename = filename if isinstance(filename, (list, tuple)) else [filename]
 
+    # returns the the map *reader -> [data_frame], where *reader is created per input otf2 file,
+    # and each data_frame in [data_frame] corresponds to a rocpd data base (indexed by tree_node) which contributed to the otf2 file
     def read(self):
         def _read_trace(trace_name):
             trace = otf2.reader.Reader(trace_name)
@@ -150,20 +152,21 @@ class OTF2Reader:
                         f"Modified length ({_mlen}) != Expected length({_elen}) for {event} at {location}"
                     )
 
-            data = {
-                "system_tree_node": [],
-                "location_group": [],
-                "location": [],
-                "region": [],
-                "attributes": [],
-                "depth": [],
-                "name": [],
-                "category": [],
-                "start_ts": [],
-                "end_ts": [],
-            }
-
+            process_dfs = []
             for tree, lgitr in call_stack.items():
+                data = {
+                    "system_tree_node": [],
+                    "location_group": [],
+                    "location": [],
+                    "region": [],
+                    "attributes": [],
+                    "depth": [],
+                    "name": [],
+                    "category": [],
+                    "start_ts": [],
+                    "end_ts": [],
+                }
+
                 for group, gitr in lgitr.items():
                     for loc, ritr in gitr.items():
                         for region in ritr:
@@ -177,21 +180,20 @@ class OTF2Reader:
                             data["name"] += [region.name]
                             data["start_ts"] += [region.enter_nsec]
                             data["end_ts"] += [region.leave_nsec]
+                process_dfs += [pd.DataFrame.from_dict(data)]
 
-            return (trace, pd.DataFrame.from_dict(data))
+            return (trace, process_dfs)
 
-        readers = []
-        df = pd.DataFrame()
+        ret_val = {}
         for itr in self.filename:
-            _reader, _df = _read_trace(itr)
-            readers += [_reader]
-            df = pd.concat([df, _df])
+            _reader, _process_dfs = _read_trace(itr)
+            ret_val[_reader] = _process_dfs
 
-        return (df, readers)
+        return ret_val
 
 
 def read_trace(filename):
-    data = OTF2Reader(filename).read()[0]
+    data = list(OTF2Reader(filename).read().values())[0][0]
 
     print(f"\nDATA:\n{data}")
 

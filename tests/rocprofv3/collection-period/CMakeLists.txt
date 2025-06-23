@@ -23,12 +23,11 @@ set(collection-period-env "${PRELOAD_ENV}" ROCPROF_COLLECTION_PERIOD_TESTING=tru
 
 rocprofiler_configure_pytest_files(CONFIG pytest.ini COPY validate.py conftest.py)
 
-##########################################################################################
+# ########################################################################################
 #
-#   Command line input
+# Command line input
 #
-##########################################################################################
-
+# ########################################################################################
 add_test(
     NAME rocprofv3-test-collection-period-execute
     COMMAND

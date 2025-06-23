@@ -69,7 +69,7 @@ def otf2_data(request):
     filename = request.config.getoption("--otf2-input")
     if not os.path.isfile(filename):
         return pytest.skip("rocdecode tracing unavailable")
-    return OTF2Reader(filename).read()[0]
+    return list(OTF2Reader(filename).read().values())[0][0]
 
 
 @pytest.fixture

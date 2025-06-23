@@ -38,8 +38,7 @@ endif()
 #
 # generate rocpd database and the old-way outputs csv, otf2, perfetto to compare
 #
-#########################################################################################
-
+# ########################################################################################
 add_test(
     NAME rocprofv3-test-rocpd-execute
     COMMAND
@@ -85,12 +84,11 @@ set_tests_properties(
                FIXTURES_SETUP
                rocprofv3-test-rocpd-multiproc)
 
-#########################################################################################
+# ########################################################################################
 #
 # OTF2 generation
 #
-#########################################################################################
-
+# ########################################################################################
 add_test(
     NAME rocprofv3-test-rocpd-otf2-generation
     COMMAND
@@ -135,15 +133,16 @@ set_tests_properties(
                "${ROCPROFILER_DEFAULT_FAIL_REGEX}"
                DISABLED
                "${MULTIPROC_IS_DISABLED}"
+               FIXTURES_SETUP
+               rocprofv3-test-rocpd-generation-multiproc
                FIXTURES_REQUIRED
                rocprofv3-test-rocpd-multiproc)
 
-#########################################################################################
+# ########################################################################################
 #
 # perfetto generate
 #
-#########################################################################################
-
+# ########################################################################################
 add_test(
     NAME rocprofv3-test-rocpd-perfetto-generation
     COMMAND
@@ -189,15 +188,16 @@ set_tests_properties(
                "${ROCPROFILER_DEFAULT_FAIL_REGEX}"
                DISABLED
                "${MULTIPROC_IS_DISABLED}"
+               FIXTURES_SETUP
+               rocprofv3-test-rocpd-generation-multiproc
                FIXTURES_REQUIRED
                rocprofv3-test-rocpd-multiproc)
 
-#########################################################################################
+# ########################################################################################
 #
 # CSV generate
 #
-#########################################################################################
-
+# ########################################################################################
 add_test(
     NAME rocprofv3-test-rocpd-csv-generation
     COMMAND
@@ -222,11 +222,11 @@ set_tests_properties(
                FIXTURES_REQUIRED
                rocprofv3-test-rocpd)
 
-#########################################################################################
+# ########################################################################################
 #
 # Validation
 #
-#########################################################################################
+# ########################################################################################
 
 set(VALIDATION_DEPENDS
     rocprofv3-test-rocpd-perfetto-generation rocprofv3-test-rocpd-csv-generation
@@ -254,3 +254,32 @@ set_tests_properties(
                "${ROCPROFILER_DEFAULT_FAIL_REGEX}"
                FIXTURES_REQUIRED
                rocprofv3-test-rocpd-generation)
+
+set(MULTIPROC_VALIDATION_DEPENDS rocprofv3-test-rocpd-perfetto-generation-multiproc
+                                 rocprofv3-test-rocpd-otf2-generation-multiproc)
+
+add_test(
+    NAME rocprofv3-test-rocpd-validation-multiproc
+    COMMAND
+        ${Python3_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/validate.py --skip
+        test_csv_data test_perfetto_data test_rocpd_data --json-input
+        ${CMAKE_CURRENT_BINARY_DIR}/rocpd-input-data-multiproc/out_mp_0_results.json
+        ${CMAKE_CURRENT_BINARY_DIR}/rocpd-input-data-multiproc/out_mp_1_results.json
+        --otf2-input
+        ${CMAKE_CURRENT_BINARY_DIR}/rocpd-output-data-multiproc/rocpd-mp-output-test_results.otf2
+    )
+
+set_tests_properties(
+    rocprofv3-test-rocpd-validation-multiproc
+    PROPERTIES TIMEOUT
+               45
+               LABELS
+               "integration-tests;rocpd"
+               ENVIRONMENT
+               "${rocprofv3-rocpd-env}"
+               FAIL_REGULAR_EXPRESSION
+               "${ROCPROFILER_DEFAULT_FAIL_REGEX}"
+               DEPENDS
+               "${MULTIPROC_VALIDATION_DEPENDS}"
+               FIXTURES_REQUIRED
+               rocprofv3-test-rocpd-generation-multiproc)

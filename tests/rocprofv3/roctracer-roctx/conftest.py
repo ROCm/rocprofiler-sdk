@@ -68,4 +68,4 @@ def otf2_data(request):
     filename = request.config.getoption("--otf2-input")
     if not os.path.exists(filename):
         raise FileExistsError(f"{filename} does not exist")
-    return OTF2Reader(filename).read()[0]
+    return list(OTF2Reader(filename).read().values())[0][0]

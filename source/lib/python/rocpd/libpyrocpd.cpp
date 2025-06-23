@@ -676,7 +676,7 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
             auto sqlgen_otf2 = common::simple_timer{
                 fmt::format("OTF2 generation from {} SQL database(s)", data.size())};
 
-            uint16_t _process_counter = 0;
+            uint16_t _process_counter = 1;
             for(auto obj : {data.connection})
             {
                 auto* conn  = rocpd::interop::get_connection(std::move(obj));
