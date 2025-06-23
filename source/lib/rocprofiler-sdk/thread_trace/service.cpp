@@ -89,7 +89,8 @@ rocprofiler_configure_dispatch_thread_trace_service(
             {
                 auto event_it = id_map.find(param.counter_id.handle);
                 if(event_it != id_map.end())
-                    pack.perfcounters.push_back({event_it->second, param.simd_mask});
+                    pack.perfcounters.emplace_back(
+                        std::make_pair<uint32_t, uint32_t>(event_it->second, param.simd_mask));
             }
             break;
             case ROCPROFILER_THREAD_TRACE_PARAMETER_PERFCOUNTERS_CTRL:
@@ -158,7 +159,8 @@ rocprofiler_configure_device_thread_trace_service(
             {
                 auto event_it = id_map.find(param.counter_id.handle);
                 if(event_it != id_map.end())
-                    pack.perfcounters.push_back({event_it->second, param.simd_mask});
+                    pack.perfcounters.emplace_back(
+                        std::make_pair<uint32_t, uint32_t>(event_it->second, param.simd_mask));
             }
             break;
             case ROCPROFILER_THREAD_TRACE_PARAMETER_PERFCOUNTERS_CTRL:
