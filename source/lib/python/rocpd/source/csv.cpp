@@ -237,8 +237,8 @@ write_kernel_csv(
             std::string kernel_identifier = cm.config.kernel_rename ? kernel.region : kernel.name;
 
             std::string agent_identifier = create_agent_index(cm.config.agent_index_value,
-                                                              kernel.agent_abs_index,
-                                                              kernel.agent_log_index,
+                                                              kernel.agent_absolute_index,
+                                                              kernel.agent_logical_index,
                                                               kernel.agent_type_index,
                                                               std::string_view(kernel.agent_type))
                                                .as_string();
@@ -281,16 +281,16 @@ write_memory_copy_csv(
                         [](CsvManager& cm, CsvType type, const rocpd::types::memory_copies& mcopy) {
                             std::string src_agent_identifier =
                                 create_agent_index(cm.config.agent_index_value,
-                                                   mcopy.src_agent_abs_index,
-                                                   mcopy.src_agent_log_index,
+                                                   mcopy.src_agent_absolute_index,
+                                                   mcopy.src_agent_logical_index,
                                                    mcopy.src_agent_type_index,
                                                    std::string_view(mcopy.src_agent_type))
                                     .as_string();
 
                             std::string dst_agent_identifier =
                                 create_agent_index(cm.config.agent_index_value,
-                                                   mcopy.dst_agent_abs_index,
-                                                   mcopy.dst_agent_log_index,
+                                                   mcopy.dst_agent_absolute_index,
+                                                   mcopy.dst_agent_logical_index,
                                                    mcopy.dst_agent_type_index,
                                                    std::string_view(mcopy.dst_agent_type))
                                     .as_string();
@@ -327,8 +327,8 @@ write_memory_allocation_csv(
             std::string operation = fmt::format("MEMORY_ALLOCATION_{}", normalized_type);
 
             std::string agent_identifier = create_agent_index(cm.config.agent_index_value,
-                                                              malloc.agent_abs_index,
-                                                              malloc.agent_log_index,
+                                                              malloc.agent_absolute_index,
+                                                              malloc.agent_logical_index,
                                                               malloc.agent_type_index,
                                                               std::string_view(malloc.agent_type))
                                                .as_string();
@@ -362,8 +362,8 @@ write_scratch_memory_csv(
         [](CsvManager& cm, CsvType type, const rocpd::types::scratch_memory& scratch_mem) {
             std::string agent_identifier =
                 create_agent_index(cm.config.agent_index_value,
-                                   scratch_mem.agent_abs_index,
-                                   scratch_mem.agent_log_index,
+                                   scratch_mem.agent_absolute_index,
+                                   scratch_mem.agent_logical_index,
                                    scratch_mem.agent_type_index,
                                    std::string_view(scratch_mem.agent_type))
                     .as_string();
@@ -681,8 +681,8 @@ write_counters_csv(CsvManager&                                                cs
                         [](CsvManager& cm, CsvType type, const rocpd::types::counter& counter) {
                             std::string agent_identifier =
                                 create_agent_index(cm.config.agent_index_value,
-                                                   counter.agent_abs_index,
-                                                   counter.agent_log_index,
+                                                   counter.agent_absolute_index,
+                                                   counter.agent_logical_index,
                                                    counter.agent_type_index,
                                                    std::string_view(counter.agent_type))
                                     .as_string();
