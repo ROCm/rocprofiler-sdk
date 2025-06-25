@@ -34,6 +34,7 @@
 #include <rocprofiler-sdk/marker/api_id.h>
 #include <rocprofiler-sdk/cxx/operators.hpp>
 #include <rocprofiler-sdk/cxx/utility.hpp>
+#include <rocprofiler-sdk/cxx/enum_string.hpp>
 
 #include <unistd.h>
 #include <cstdint>
@@ -504,6 +505,176 @@ generate_csv(const output_config&                                               
                 record.start_timestamp,
                 record.end_timestamp);
 
+            ofs << row_ss.str();
+        }
+    }
+}
+
+void
+generate_csv(const output_config&                                              cfg,
+             const metadata&                                                   tool_metadata,
+             const generator<tool_buffer_tracing_page_migration_ext_record_t>& data,
+             const stats_entry_t&                                              stats)
+{
+    if(data.empty()) return;
+
+    if(cfg.stats && stats)
+        write_stats(get_stats_output_file(cfg, domain_type::PAGE_MIGRATION), stats.entries);
+
+    /*
+    auto ofs = tool::csv_output_file{cfg,
+                                     domain_type::PAGE_MIGRATION,
+                                     tool::csv::page_migration_csv_encoder{},
+                                     {"StreamID",
+                                      "CorrelationID",
+                                      "Kind",
+                                      "Operation",
+                                      "Timestamp"
+                                      "PID",
+                                      "Page_Migrate_Start.Start_Addr",
+                                      "Page_Migrate_Start.End_Addr",
+                                      "Page_Migrate_Start.From_Agent",
+                                      "Page_Migrate_Start.To_Agent",
+                                      "Page_Migrate_Start.Prefetch_Agent",
+                                      "Page_Migrate_Start.Preferred_Agent",
+                                      "Page_Migrate_Start.Trigger",
+                                      "Page_Migrate_End.Start_Addr",
+                                      "Page_Migrate_End.End_Addr",
+                                      "Page_Migrate_End.From_Agent",
+                                      "Page_Migrate_End.To_Agent",
+                                      "Page_Migrate_End.Trigger",
+                                      "Page_Migrate_End.Error_Code",
+                                      "Page_Fault_Start.Read_Fault",
+                                      "Page_Fault_Start.Agent_Id",
+                                      "Page_Fault_Start.Address",
+                                      "Page_Fault_End.Migrated",
+                                      "Page_Fault_End.Agent_Id",
+                                      "Page_Fault_End.Address",
+                                      "Queue_Eviction.Agent_Id",
+                                      "Queue_Eviction.Trigger",
+                                      "Queue_Restore.Rescheduled",
+                                      "Unmap_From_GPU.Start_Addr",
+                                      "Unmap_From_GPU.End_Addr",
+                                      "Unmap_From_GPU.Agent_Id",
+                                      "Unmap_From_GPU.Trigger",
+                                      "Dropped_Event.Dropped_Events_Count",
+                                      }};
+    */
+
+    auto ofs = tool::csv_output_file{cfg,
+                                     domain_type::PAGE_MIGRATION,
+                                     tool::csv::page_migration_csv_encoder{},
+                                     {"StreamID",
+                                      "Kind",
+                                      "Operation",
+                                      "Timestamp",
+                                      "PID",
+                                      "Start_Addr",
+                                      "End_Addr",
+                                      "From_Agent",
+                                      "To_Agent",
+                                      "Prefetch_Agent",
+                                      "Preferred_Agent",
+                                      "Trigger",
+                                      "Error_Code",
+                                      "Read_Fault",
+                                      "Migrated",
+                                      "Rescheduled",
+                                      "Dropped_Events_Count"}};
+
+    for(auto ditr : data)
+    {
+        for(auto record : data.get(ditr))
+        {
+            auto row_ss   = std::stringstream{};
+            auto api_name = tool_metadata.get_operation_name(record.kind, record.operation);
+
+            auto start_addr           = 0;
+            auto end_addr             = 0;
+            auto from_agent           = 0;
+            auto to_agent             = 0;
+            auto prefetch_agent       = 0;
+            auto preferred_agent      = 0;
+            auto trigger              = std::string{};
+            auto error_code           = 0;
+            auto read_fault           = 0;
+            auto migrated             = 0;
+            auto rescheduled          = 0;
+            auto dropped_events_count = 0;
+
+            switch (record.operation) {
+            case ROCPROFILER_PAGE_MIGRATION_PAGE_MIGRATE_START:
+                start_addr      = record.args.page_migrate_start.start_addr;
+                end_addr        = record.args.page_migrate_start.end_addr;
+                from_agent      = record.args.page_migrate_start.from_agent.handle;
+                to_agent        = record.args.page_migrate_start.to_agent.handle;
+                prefetch_agent  = record.args.page_migrate_start.prefetch_agent.handle;
+                preferred_agent = record.args.page_migrate_start.preferred_agent.handle;
+                trigger         = rocprofiler::sdk::get_enum_label(record.args.page_migrate_start.trigger);
+                break;
+            case ROCPROFILER_PAGE_MIGRATION_PAGE_MIGRATE_END:
+                start_addr = record.args.page_migrate_end.start_addr;
+                end_addr   = record.args.page_migrate_end.end_addr;
+                from_agent = record.args.page_migrate_end.from_agent.handle;
+                to_agent   = record.args.page_migrate_end.to_agent.handle;
+                trigger    = rocprofiler::sdk::get_enum_label(record.args.page_migrate_end.trigger);
+                error_code = record.args.page_migrate_end.error_code;
+                break;
+            case ROCPROFILER_PAGE_MIGRATION_PAGE_FAULT_START:
+                start_addr = record.args.page_fault_start.address;
+                end_addr   = start_addr;
+                from_agent = record.args.page_fault_start.agent_id.handle;
+                read_fault = record.args.page_fault_start.read_fault;
+                break;
+            case ROCPROFILER_PAGE_MIGRATION_PAGE_FAULT_END:
+                start_addr = record.args.page_fault_end.address;
+                end_addr   = start_addr;
+                from_agent = record.args.page_fault_end.agent_id.handle;
+                migrated   = record.args.page_fault_end.migrated;
+                break;
+            case ROCPROFILER_PAGE_MIGRATION_QUEUE_EVICTION:
+                from_agent = record.args.queue_eviction.agent_id.handle;
+                trigger    = rocprofiler::sdk::get_enum_label(record.args.queue_eviction.trigger);
+                break;
+            case ROCPROFILER_PAGE_MIGRATION_QUEUE_RESTORE:
+                from_agent  = record.args.queue_restore.agent_id.handle;
+                rescheduled = record.args.queue_restore.rescheduled;
+                break;
+            case ROCPROFILER_PAGE_MIGRATION_UNMAP_FROM_GPU:
+                start_addr = record.args.unmap_from_gpu.start_addr;
+                end_addr   = record.args.unmap_from_gpu.end_addr;
+                from_agent = record.args.unmap_from_gpu.agent_id.handle;
+                trigger    = rocprofiler::sdk::get_enum_label(record.args.unmap_from_gpu.trigger);
+                break;
+            case ROCPROFILER_PAGE_MIGRATION_DROPPED_EVENT:
+                dropped_events_count = record.args.dropped_event.dropped_events_count;
+                break;
+            case ROCPROFILER_PAGE_MIGRATION_NONE:
+            case ROCPROFILER_PAGE_MIGRATION_LAST:
+            default:
+                break;
+            }
+
+            rocprofiler::tool::csv::page_migration_csv_encoder::write_row(
+                row_ss,
+                record.stream_id.handle,
+                tool_metadata.get_kind_name(record.kind),
+                api_name,
+                record.timestamp,
+                record.pid,
+                start_addr,
+                end_addr,
+                from_agent,
+                to_agent,
+                prefetch_agent,
+                preferred_agent,
+                trigger,
+                error_code,
+                read_fault,
+                migrated,
+                rescheduled,
+                dropped_events_count
+            );
             ofs << row_ss.str();
         }
     }

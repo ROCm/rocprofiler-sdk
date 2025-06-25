@@ -347,8 +347,9 @@ parse_event<ROCPROFILER_PAGE_MIGRATION_QUEUE_RESTORE>(std::string_view str)
                 &rec.timestamp,
                 &rec.pid,
                 &_node_id);
+
     // check if we have a valid char at the end. -1 has \0
-    if(str[str.size() - 2] == 'R')
+    if(str[str.size() - 1] == 'R')
         e.rescheduled = true;
     else
         e.rescheduled = false;

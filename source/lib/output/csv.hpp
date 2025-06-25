@@ -103,6 +103,7 @@ using api_csv_encoder                      = csv_encoder<7>;
 using agent_info_csv_encoder               = csv_encoder<53>;
 using counter_collection_csv_encoder       = csv_encoder<19>;
 using memory_allocation_csv_encoder        = csv_encoder<8>;
+using page_migration_csv_encoder           = csv_encoder<17>;
 using marker_csv_encoder                   = csv_encoder<7>;
 using list_basic_metrics_csv_encoder       = csv_encoder<5>;
 using list_derived_metrics_csv_encoder     = csv_encoder<5>;

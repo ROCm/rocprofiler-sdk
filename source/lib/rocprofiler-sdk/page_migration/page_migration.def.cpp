@@ -33,8 +33,8 @@ namespace page_migration
 using namespace rocprofiler::common;
 
 using kfd_event_id_t           = decltype(KFD_SMI_EVENT_NONE);
-using migrate_trigger_t        = rocprofiler_page_migration_trigger_t;
 using page_migration_record_t  = rocprofiler_buffer_tracing_page_migration_record_t;
+using migrate_trigger_t        = rocprofiler_page_migration_trigger_t;
 using queue_suspend_trigger_t  = rocprofiler_page_migration_queue_suspend_trigger_t;
 using unmap_from_gpu_trigger_t = rocprofiler_page_migration_unmap_from_gpu_trigger_t;
 
