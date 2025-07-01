@@ -53,8 +53,8 @@ WaveFile::WaveFile(WaveConfig& config, const wave_t& wave)
             filename,
             FilenameMgr::Coord{
                 config.shader_engine, (int) wave.simd, (int) wave.wave_id, assigned_id},
-            wave.start_time,
-            wave.end_time);
+            wave.start_timestamp,
+            wave.end_timestamp);
     }
 
     nlohmann::json instructions;
@@ -70,7 +70,7 @@ WaveFile::WaveFile(WaveConfig& config, const wave_t& wave)
     }
 
     nlohmann::json timeline;
-    auto           acc_time = wave.start_time;
+    auto           acc_time = wave.start_timestamp;
 
     for(size_t i = 0; i < wave.timeline_size; i++)
     {
@@ -110,8 +110,8 @@ WaveFile::WaveFile(WaveConfig& config, const wave_t& wave)
         {"id", assigned_id},
         {"simd", wave.simd},
         {"slot", wave.wave_id},
-        {"begin", wave.start_time},
-        {"end", wave.end_time},
+        {"begin", wave.start_timestamp},
+        {"end", wave.end_timestamp},
 
         {"instructions", instructions},
         {"timeline", timeline},
@@ -120,7 +120,7 @@ WaveFile::WaveFile(WaveConfig& config, const wave_t& wave)
 
     nlohmann::json metadata = {
         {"name", "SE" + std::to_string(config.shader_engine)},
-        {"duration", wave.end_time - wave.start_time},
+        {"duration", wave.end_timestamp - wave.start_timestamp},
         {"wave", wave_entry},
         {"num_stitched", wave.instructions_size},
         {"num_insts", wave.instructions_size},

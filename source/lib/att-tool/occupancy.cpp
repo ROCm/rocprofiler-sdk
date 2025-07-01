@@ -65,7 +65,7 @@ OccupancyFile(const Fspath&                                     dir,
         for(const auto& event : eventlist)
         {
             nlohmann::json json_event;
-            json_event.push_back(event.time);
+            json_event.push_back(event.timestamp);
             json_event.push_back(event.cu);
             json_event.push_back(event.simd);
             json_event.push_back(event.slot);
