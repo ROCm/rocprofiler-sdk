@@ -64,7 +64,7 @@ typedef struct rocprofiler_thread_trace_decoder_pc_t
  */
 typedef struct rocprofiler_thread_trace_decoder_perfevent_t
 {
-    rocprofiler_shader_timestamp_t time;
+    rocprofiler_shader_timestamp_t timestamp;
 
     uint16_t event0;  //< Counter0 (bank==0) or Counter4 (bank==1).
     uint16_t event1;  //< Counter1 (bank==0) or Counter5 (bank==1).
@@ -173,8 +173,8 @@ typedef struct rocprofiler_thread_trace_decoder_wave_t
     uint32_t _rsvd2;
     uint32_t _rsvd3;
 
-    rocprofiler_shader_timestamp_t start_time;  ///< Matches occupancy event wave start.
-    rocprofiler_shader_timestamp_t end_time;    ///< Matches occupancy event wave end.
+    rocprofiler_shader_timestamp_t start_timestamp;  ///< Matches occupancy event wave start.
+    rocprofiler_shader_timestamp_t end_timestamp;    ///< Matches occupancy event wave end.
 
     size_t                                         timeline_size;      ///< timeline_array size
     size_t                                         instructions_size;  ///< instructions_array size
