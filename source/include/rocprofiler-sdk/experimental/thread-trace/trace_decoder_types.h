@@ -79,7 +79,7 @@ typedef struct rocprofiler_thread_trace_decoder_perfevent_t
  */
 typedef struct rocprofiler_thread_trace_decoder_occupancy_t
 {
-    rocprofiler_thread_trace_decoder_pc_t pc;    ///< Wave start address (kernel entry point)
+    rocprofiler_thread_trace_decoder_pc_t pc;         ///< Wave start address (kernel entry point)
     rocprofiler_shader_timestamp_t        timestamp;  ///< Timestamp of event
 
     uint8_t  start;  ///< 1 = Wave start event, 0 = wave end event
