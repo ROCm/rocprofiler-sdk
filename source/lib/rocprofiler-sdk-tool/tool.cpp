@@ -490,7 +490,8 @@ set_kernel_rename_and_stream_correlation_id(rocprofiler_thread_id_t  thr_id,
         tool::get_config().kernel_rename && thread_dispatch_rename != nullptr &&
         !thread_dispatch_rename->empty();
 
-    const bool hip_stream_enabled = !tool::get_config().group_by_queue;
+    const bool hip_stream_enabled =
+        !tool::get_config().group_by_queue && rocprofiler::tool::stream::stream_stack_not_null();
 
     if(!kernel_rename_service_enabled && !hip_stream_enabled) return 1;
 
@@ -1606,7 +1607,10 @@ configure_pc_sampling_on_all_agents(uint64_t                        buffer_size,
         }
     }
     if(!config_match_found)
-        ROCP_FATAL << "Given PC sampling configuration is not supported on any of the agents";
+    {
+        ROCP_ERROR << "Given PC sampling configuration is not supported on any of the agents";
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 struct real_callbacks_t
@@ -2845,9 +2849,10 @@ rocprofv3_error_signal_handler(int signo, siginfo_t* info, void* ucontext)
                                           this_func,
                                           signo);
                 if((_chained.action->sa_flags & SA_SIGINFO) == SA_SIGINFO &&
-                   _chained.action->sa_sigaction)
+                   _chained.action->sa_sigaction &&
+                   _chained.action->sa_sigaction != &rocprofv3_error_signal_handler)
                 {
-                    ROCP_TRACE << fmt::format(
+                    ROCP_WARNING << fmt::format(
                         "[PPID={}][PID={}][TID={}][{}] rocprofv3 found chained signal handler for "
                         "{}... executing chained sigaction (SIGINFO)",
                         this_ppid,
@@ -2861,7 +2866,7 @@ rocprofv3_error_signal_handler(int signo, siginfo_t* info, void* ucontext)
                         _chained.action->sa_handler &&
                         _chained.action->sa_sigaction != &rocprofv3_error_signal_handler)
                 {
-                    ROCP_TRACE << fmt::format(
+                    ROCP_WARNING << fmt::format(
                         "[PPID={}][PID={}][TID={}][{}] rocprofv3 found chained signal handler for "
                         "{}... executing chained sigaction (HANDLER)",
                         this_ppid,
@@ -2876,7 +2881,7 @@ rocprofv3_error_signal_handler(int signo, siginfo_t* info, void* ucontext)
             {
                 if(_chained.handler)
                 {
-                    ROCP_TRACE << fmt::format(
+                    ROCP_WARNING << fmt::format(
                         "[PPID={}][PID={}][TID={}][{}] rocprofv3 found chained signal handler for "
                         "{}... executing chained handler",
                         this_ppid,
