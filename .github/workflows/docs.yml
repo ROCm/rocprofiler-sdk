@@ -29,7 +29,7 @@ env:
 
 jobs:
   build-docs:
-    runs-on: rocprof-azure-docker-emu-runner-set
+    runs-on: AMD-ROCm-Internal-dev1
     container: continuumio/miniconda3
     permissions:
       contents: read
@@ -43,7 +43,8 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Create Docs Directory
-        run:
+        run: |
+          git config --global --add safe.directory '*'
           mkdir -p docs/_doxygen/rocprofiler-sdk
           mkdir -p docs/_doxygen/roctx
       - name: Install documentation dependencies
@@ -61,6 +62,7 @@ jobs:
           conda activate rocprofiler-docs
           python3 -m pip install sphinx
           python3 -m pip install doxysphinx rocm-docs-core
+          git config --global --add safe.directory '*'
           ../scripts/update-docs.sh
       - name: Upload artifact
         if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -70,7 +72,7 @@ jobs:
 
   deploy-docs:
     if: github.ref == 'refs/heads/amd-mainline'
-    runs-on: ubuntu-latest
+    runs-on: AMD-ROCm-Internal-dev1
     needs: build-docs
     permissions:
       contents: read
@@ -85,14 +87,25 @@ jobs:
         uses: actions/deploy-pages@v4
 
   build-docs-from-source:
-    runs-on: rocprof-azure-gpuless-emu-runner-set
+    runs-on: AMD-ROCm-Internal-dev1
+    container: rocm/dev-ubuntu-22.04:latest
     steps:
+      - name: Install os essentials
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          sudo apt update
+          sudo apt install -y software-properties-common
+          sudo apt-add-repository ppa:git-core/ppa
+          sudo apt-get update
+          sudo apt-get install -y git
       - name: Checkout
         uses: actions/checkout@v4
         with:
             submodules: true
       - name: Create Docs Directory
-        run:
+        run: |
+          git config --global --add safe.directory '*'
           mkdir -p source/docs/_doxygen/rocprofiler-sdk
           mkdir -p source/docs/_doxygen/roctx
       - name: Install requirements
@@ -100,8 +113,8 @@ jobs:
         shell: bash
         run: |
           git config --global --add safe.directory '*'
-          apt-get update
-          apt-get install -y cmake gcc g++ libdw-dev libsqlite3-dev
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc g++ libdw-dev libsqlite3-dev rpm
           python3 -m pip install -r requirements.txt
 
       - name: Configure, Build, Install, and Package
@@ -116,8 +129,8 @@ jobs:
             -DCPACK_GENERATOR='DEB;RPM;TGZ'
             -DCPACK_PACKAGING_INSTALL_PREFIX="$(realpath /opt/rocm)"
             -DPython3_EXECUTABLE=$(which python3)
-            . &&
-          cmake --build build --target docs --parallel 4 &&
-          cmake --build build --target all --parallel 12 &&
-          cmake --build build --target install --parallel 12 &&
+            .;
+          cmake --build build --target docs --parallel 4;
+          cmake --build build --target all --parallel 12;
+          sudo cmake --build build --target install --parallel 12;
           cmake --build build --target package --parallel 12
