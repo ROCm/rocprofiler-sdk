@@ -286,6 +286,9 @@ struct kernel_dispatch
     uint64_t                stack_id            = 0;
     uint64_t                parent_stack_id     = 0;
     uint64_t                corr_id             = 0;
+    uint64_t                sgpr_count          = 0;
+    uint64_t                arch_vgpr_count     = 0;
+    uint64_t                accum_vgpr_count    = 0;
 };
 
 struct memory_allocation
@@ -714,6 +717,9 @@ load(ArchiveT& ar, rocpd::types::kernel_dispatch& data)
     LOAD_DATA_FIELD(stack_id);
     LOAD_DATA_FIELD(parent_stack_id);
     LOAD_DATA_FIELD(corr_id);
+    LOAD_DATA_FIELD(sgpr_count);
+    LOAD_DATA_FIELD(arch_vgpr_count);
+    LOAD_DATA_FIELD(accum_vgpr_count);
 }
 
 template <typename ArchiveT>

@@ -1,6 +1,7 @@
+
 // MIT License
 //
-// Copyright (c) 2025 Advanced Micro Devices, Inc. All Rights Reserved.
+// Copyright (c) 2023-2025 Advanced Micro Devices, Inc. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -9,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,9 +23,13 @@
 
 #pragma once
 
+#include <rocprofiler-sdk/agent.h>
+#include <rocprofiler-sdk/buffer_tracing.h>
+
 #include "lib/python/rocpd/source/types.hpp"
 
 #include "lib/common/defines.hpp"
+#include "lib/output/csv_output_file.hpp"
 #include "lib/output/generateStats.hpp"
 #include "lib/output/generator.hpp"
 #include "lib/output/metadata.hpp"
@@ -45,76 +50,59 @@ namespace rocpd
 {
 namespace output
 {
-using rocprofiler::tool::float_type;
+rocprofiler::tool::csv_output_file
+generate_agent_ofs(const rocprofiler::tool::output_config& cfg);
 
-struct CsvFileConfig
-{
-    std::string filename;
-    std::string header;
-};
+rocprofiler::tool::csv_output_file
+generate_kernel_ofs(const rocprofiler::tool::output_config& cfg);
 
-enum class CsvType
-{
-    KERNEL_DISPATCH,
-    MEMORY_COPY,
-    MEMORY_ALLOCATION,
-    SCRATCH_MEMORY,
-    HIP_API,
-    HSA_CSV_API,
-    MARKER,
-    COUNTER,
-    RCCL_API,
-    ROCDECODE_API,
-    ROCJPEG_API,
-};
+rocprofiler::tool::csv_output_file
+generate_memory_copy_ofs(const rocprofiler::tool::output_config& cfg);
 
-class CsvManager
-{
-public:
-    CsvManager(rocprofiler::tool::output_config output_cfg);
-    ~CsvManager();
+rocprofiler::tool::csv_output_file
+generate_memory_allocation_ofs(const rocprofiler::tool::output_config& cfg);
 
-    rocprofiler::tool::output_config config;
-    std::map<CsvType, CsvFileConfig> csv_configs;
+rocprofiler::tool::csv_output_file
+generate_scratch_memory_ofs(const rocprofiler::tool::output_config& cfg);
 
-    std::ofstream& get_stream(CsvType type);
+rocprofiler::tool::csv_output_file
+generate_counter_ofs(const rocprofiler::tool::output_config& cfg);
 
-    bool has_stream(CsvType type) const;
-    bool initialize_csv_file(CsvType type);
-
-    template <typename... Args>
-    void write_line(CsvType type, Args&&... args)
-    {
-        auto& stream = get_stream(type);
-        if(!stream.is_open()) return;
-
-        std::vector<std::string> items;
-        (items.push_back(fmt::format("{}", std::forward<Args>(args))), ...);
-        stream << fmt::format("{}\n", fmt::join(items, ","));
-    }
-
-private:
-    std::map<CsvType, std::ofstream> streams;
-    std::map<CsvType, std::string>   file_paths;
-
-    bool ensure_output_directory() const;
-};
+rocprofiler::tool::csv_output_file
+generate_region_ofs(const rocprofiler::tool::output_config& cfg, domain_type domain);
 
 void
-write_agent_info_csv(CsvManager& csv_manager, const std::vector<rocpd::types::agent>& agents);
+generate_csv(rocprofiler::tool::csv_output_file& ofs, const std::vector<rocpd::types::agent>& data);
 
 void
-write_csvs(CsvManager&                                                          csv_manager,
-           const rocprofiler::tool::generator<rocpd::types::kernel_dispatch>&   kernel_dispatch,
-           const rocprofiler::tool::generator<rocpd::types::memory_copies>&     memory_copies,
-           const rocprofiler::tool::generator<rocpd::types::memory_allocation>& memory_allocations,
-           const rocprofiler::tool::generator<rocpd::types::region>&            hip_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&            hsa_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&            marker_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::counter>&           counters_calls,
-           const rocprofiler::tool::generator<rocpd::types::scratch_memory>& scratch_memory_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rccl_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rocdecode_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rocjpeg_calls);
+generate_csv(const rocprofiler::tool::output_config&                            cfg,
+             rocprofiler::tool::csv_output_file&                                ofs,
+             const rocprofiler::tool::generator<rocpd::types::kernel_dispatch>& data);
+
+void
+generate_csv(const rocprofiler::tool::output_config&                          cfg,
+             rocprofiler::tool::csv_output_file&                              ofs,
+             const rocprofiler::tool::generator<rocpd::types::memory_copies>& data);
+
+void
+generate_csv(const rocprofiler::tool::output_config&                              cfg,
+             rocprofiler::tool::csv_output_file&                                  ofs,
+             const rocprofiler::tool::generator<rocpd::types::memory_allocation>& data);
+
+void
+generate_csv(const rocprofiler::tool::output_config&                           cfg,
+             rocprofiler::tool::csv_output_file&                               ofs,
+             const rocprofiler::tool::generator<rocpd::types::scratch_memory>& data);
+
+void
+generate_csv(const rocprofiler::tool::output_config&                    cfg,
+             rocprofiler::tool::csv_output_file&                        ofs,
+             const rocprofiler::tool::generator<rocpd::types::counter>& data);
+
+void
+generate_csv(rocprofiler::tool::csv_output_file&                       ofs,
+             const rocprofiler::tool::generator<rocpd::types::region>& data,
+             const domain_type                                         domain);
+
 }  // namespace output
 }  // namespace rocpd

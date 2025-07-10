@@ -319,7 +319,10 @@ SELECT
     S.private_segment_size AS static_scratch_size,
     E.stack_id,
     E.parent_stack_id,
-    E.correlation_id AS corr_id
+    E.correlation_id AS corr_id,
+    S.sgpr_count,
+    S.arch_vgpr_count,
+    S.accum_vgpr_count
 FROM
     `rocpd_kernel_dispatch` K
     INNER JOIN `rocpd_info_agent` A ON A.id = K.agent_id

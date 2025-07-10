@@ -67,6 +67,29 @@
 #include <mutex>
 #include <utility>
 
+template <typename F>
+struct EmplaceHelper
+{
+    EmplaceHelper(F&& f)
+    : m_f(std::forward<F>(f))
+    {}
+
+    operator rocprofiler::tool::csv_output_file() && { return m_f(); }
+
+private:
+    F m_f;
+};
+
+// Deduction guide
+template <typename F>
+EmplaceHelper(F&&) -> EmplaceHelper<F>;
+
+#define EMPLACE_OFS_IF_NEEDED(data_var, ofs_var, generator_func, ...)                              \
+    if(!data_var.empty() && !ofs_var)                                                              \
+    {                                                                                              \
+        ofs_var.emplace(EmplaceHelper([&] { return generator_func(output_cfg, ##__VA_ARGS__); })); \
+    }
+
 namespace py = ::pybind11;
 
 namespace rocpd
@@ -513,7 +536,18 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
 
             if(data.empty()) return;
 
-            auto csv_manager = rocpd::output::CsvManager{output_cfg};
+            std::optional<rocprofiler::tool::csv_output_file> agent_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> kernels_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> memory_copy_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> memory_allocation_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> scratch_memory_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> counter_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> hip_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> hsa_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> marker_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> rccl_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> rocdecode_ofs;
+            std::optional<rocprofiler::tool::csv_output_file> rocjpeg_ofs;
 
             for(auto obj : {data.connection})
             {
@@ -550,8 +584,6 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
                                 pitr.pid,
                                 where_extra_condition);
                         };
-
-                        rocpd::output::write_agent_info_csv(csv_manager, agents);
 
                         constexpr auto region_order_by = "start ASC, end DESC";
 
@@ -593,18 +625,99 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
                             select_guid_nid_pid("regions", "AND category LIKE 'ROCJPEG_%'"),
                             region_order_by};
 
-                        rocpd::output::write_csvs(csv_manager,
-                                                  kernels,
-                                                  memory_copies,
-                                                  memory_allocations,
-                                                  hip_api_calls,
-                                                  hsa_api_calls,
-                                                  marker_api_calls,
-                                                  counters_calls,
-                                                  scratch_memory_calls,
-                                                  rccl_calls,
-                                                  rocdecode_calls,
-                                                  rocjpeg_calls);
+                        // Agents csv
+                        EMPLACE_OFS_IF_NEEDED(agents, agent_ofs, rocpd::output::generate_agent_ofs);
+                        if(agent_ofs) rocpd::output::generate_csv(*agent_ofs, agents);
+
+                        // Kernels csv
+                        EMPLACE_OFS_IF_NEEDED(
+                            kernels, kernels_ofs, rocpd::output::generate_kernel_ofs);
+                        if(kernels_ofs)
+                            rocpd::output::generate_csv(output_cfg, *kernels_ofs, kernels);
+
+                        // Memory copy csv
+                        EMPLACE_OFS_IF_NEEDED(memory_copies,
+                                              memory_copy_ofs,
+                                              rocpd::output::generate_memory_copy_ofs);
+                        if(memory_copy_ofs)
+                            rocpd::output::generate_csv(
+                                output_cfg, *memory_copy_ofs, memory_copies);
+
+                        // Memory allocations csv
+                        EMPLACE_OFS_IF_NEEDED(memory_allocations,
+                                              memory_allocation_ofs,
+                                              rocpd::output::generate_memory_allocation_ofs);
+                        if(memory_allocation_ofs)
+                            rocpd::output::generate_csv(
+                                output_cfg, *memory_allocation_ofs, memory_allocations);
+
+                        // Scratch memory csv
+                        EMPLACE_OFS_IF_NEEDED(scratch_memory_calls,
+                                              scratch_memory_ofs,
+                                              rocpd::output::generate_scratch_memory_ofs);
+                        if(scratch_memory_ofs)
+                            rocpd::output::generate_csv(
+                                output_cfg, *scratch_memory_ofs, scratch_memory_calls);
+
+                        // Counter csv
+                        EMPLACE_OFS_IF_NEEDED(
+                            counters_calls, counter_ofs, rocpd::output::generate_counter_ofs);
+                        if(counter_ofs)
+                            rocpd::output::generate_csv(output_cfg, *counter_ofs, counters_calls);
+
+                        // HIP csv
+                        EMPLACE_OFS_IF_NEEDED(hip_api_calls,
+                                              hip_ofs,
+                                              rocpd::output::generate_region_ofs,
+                                              domain_type::HIP);
+                        if(hip_ofs)
+                            rocpd::output::generate_csv(*hip_ofs, hip_api_calls, domain_type::HIP);
+
+                        // HSA csv
+                        EMPLACE_OFS_IF_NEEDED(hsa_api_calls,
+                                              hsa_ofs,
+                                              rocpd::output::generate_region_ofs,
+                                              domain_type::HSA);
+                        if(hsa_ofs)
+                            rocpd::output::generate_csv(*hsa_ofs, hsa_api_calls, domain_type::HSA);
+
+                        // Markers csv
+                        EMPLACE_OFS_IF_NEEDED(marker_api_calls,
+                                              marker_ofs,
+                                              rocpd::output::generate_region_ofs,
+                                              domain_type::MARKER);
+
+                        if(marker_ofs)
+                            rocpd::output::generate_csv(
+                                *marker_ofs, marker_api_calls, domain_type::MARKER);
+
+                        // RCCL csv
+                        EMPLACE_OFS_IF_NEEDED(rccl_calls,
+                                              rccl_ofs,
+                                              rocpd::output::generate_region_ofs,
+                                              domain_type::RCCL);
+                        if(rccl_ofs)
+                            rocpd::output::generate_csv(*rccl_ofs, rccl_calls, domain_type::RCCL);
+
+                        // ROCDECODE csv
+                        EMPLACE_OFS_IF_NEEDED(rocdecode_calls,
+                                              rocdecode_ofs,
+                                              rocpd::output::generate_region_ofs,
+                                              domain_type::ROCDECODE);
+
+                        if(rocdecode_ofs)
+                            rocpd::output::generate_csv(
+                                *rocdecode_ofs, rocdecode_calls, domain_type::ROCDECODE);
+
+                        // ROCJPEG csv
+                        EMPLACE_OFS_IF_NEEDED(rocjpeg_calls,
+                                              rocjpeg_ofs,
+                                              rocpd::output::generate_region_ofs,
+                                              domain_type::ROCJPEG);
+
+                        if(rocjpeg_ofs)
+                            rocpd::output::generate_csv(
+                                *rocdecode_ofs, rocjpeg_calls, domain_type::ROCJPEG);
                     }
                 }
             }
