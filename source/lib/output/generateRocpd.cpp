@@ -988,6 +988,11 @@ write_rocpd(
                 auto corr_id     = itr.correlation_id;
                 auto grid        = info.grid_size;
                 auto workgroup   = info.workgroup_size;
+                auto hip_grid    = decltype(grid){
+                    .x = grid.x / workgroup.x,
+                    .y = grid.y / workgroup.y,
+                    .z = grid.z / workgroup.z,
+                };
                 auto kern_name = tool_metadata.get_kernel_symbol(kernel_id)->formatted_kernel_name;
                 auto stream_id = get_stream_id(itr.stream_id);
                 auto queue_id  = get_queue_id(info.queue_id);
@@ -1038,9 +1043,9 @@ write_rocpd(
                         insert_value("workgroup_size_x", workgroup.x),
                         insert_value("workgroup_size_y", workgroup.y),
                         insert_value("workgroup_size_z", workgroup.z),
-                        insert_value("grid_size_x", grid.x),
-                        insert_value("grid_size_y", grid.y),
-                        insert_value("grid_size_z", grid.z),
+                        insert_value("grid_size_x", hip_grid.x),
+                        insert_value("grid_size_y", hip_grid.y),
+                        insert_value("grid_size_z", hip_grid.z),
                         insert_value("region_name_id", string_entries.at(region_name)),
                         insert_value("event_id", evt_id),
                     });
