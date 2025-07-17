@@ -717,7 +717,7 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
 
                         if(rocjpeg_ofs)
                             rocpd::output::generate_csv(
-                                *rocdecode_ofs, rocjpeg_calls, domain_type::ROCJPEG);
+                                *rocjpeg_ofs, rocjpeg_calls, domain_type::ROCJPEG);
                     }
                 }
             }

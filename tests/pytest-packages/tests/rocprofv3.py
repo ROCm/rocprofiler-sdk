@@ -245,7 +245,7 @@ def _perform_time_sanity_checks(data):
     for record in data:
         start_time = record[start_columns[0]]
         end_time = record[end_columns[0]]
-        assert int(start_time) >= 0, f"Time error: Start time ({end_time}) < 0)."
+        assert int(start_time) >= 0, f"Time error: Start time ({start_time}) < 0)."
         assert int(end_time) >= 0, f"Time error: End time ({end_time}) < 0)."
         assert int(end_time) >= int(
             start_time

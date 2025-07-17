@@ -543,8 +543,6 @@ generate_csv(rocprofiler::tool::csv_output_file&                       ofs,
              const rocprofiler::tool::generator<rocpd::types::region>& data,
              const domain_type                                         domain)
 {
-    // namespace sdk = ::rocprofiler::sdk;
-
     if(data.empty()) return;
 
     for(const auto& ditr : data)
