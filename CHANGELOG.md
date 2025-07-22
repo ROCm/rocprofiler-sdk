@@ -198,11 +198,14 @@ Full documentation for ROCprofiler-SDK is available at [rocm.docs.amd.com/projec
 
 - SDK no longer creates a background thread when every tool returns a nullptr from `rocprofiler_configure`.
 - Updated disassembly.hpp's vaddr-to-file-offset mapping to use the dedicated comgr API.
+- rocprofiler_uuid_t ABI is changed to hold 128 bit value.
 - rocprofv3 shorthand argument for `--collection-period` is now `-P` (upper-case) as `-p` (lower-case) is reserved for later use
 - default output format for rocprofv3 is now `rocpd` (SQLite3 database)
 - rocprofv3 avail tool renamed from rocprofv3_avail to rocprofv3-avail tool
 - rocprofv3 avail tool has support for command line arguments.
 - rocprofv3 tool now allows for Thread Trace + PC Sampling on the same agent
+- fixed inconsistency for what is a "null" handle in `rocprofiler_*_id_t` structs.
+  - correct answer is `.handle = 0` but some definitions used `UINT64_MAX`
 
 ### Resolved issues
 
