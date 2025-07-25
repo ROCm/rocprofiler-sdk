@@ -13,6 +13,15 @@ find_package(rocprofiler-sdk REQUIRED)
 # Check if PC sampling is disabled and whether we should skip the tests.
 rocprofiler_sdk_pc_sampling_disabled(IS_PC_SAMPLING_DISABLED)
 
+# For some reason, ThreadSanitizer reports a lock-order-invervsion error when running the
+# transpose application standalone. Thus, we disable ThreadSanitizer on PC sampling tests
+# that are using transpose application.
+if(IS_PC_SAMPLING_DISABLED OR ROCPROFILER_MEMCHECK STREQUAL "ThreadSanitizer")
+    set(IS_DISABLED ON)
+else()
+    set(IS_DISABLED OFF)
+endif()
+
 rocprofiler_configure_pytest_files(CONFIG pytest.ini COPY validate.py conftest.py
                                                           input.json input.yml)
 
@@ -48,7 +57,7 @@ set_tests_properties(
                SKIP_REGULAR_EXPRESSION
                "${ROCPROFV3_TESTS_PC_SAMPLING_SKIP_REGEX}"
                DISABLED
-               "${IS_PC_SAMPLING_DISABLED}")
+               "${IS_DISABLED}")
 
 add_test(
     NAME rocprofv3-test-pc-sampling-host-trap-transpose-multiple-agents-input-json-execute
@@ -71,7 +80,7 @@ set_tests_properties(
                SKIP_REGULAR_EXPRESSION
                "${ROCPROFV3_TESTS_PC_SAMPLING_SKIP_REGEX}"
                DISABLED
-               "${IS_PC_SAMPLING_DISABLED}")
+               "${IS_DISABLED}")
 
 add_test(
     NAME rocprofv3-test-pc-sampling-host-trap-transpose-multiple-agents-input-yaml-execute
@@ -94,7 +103,7 @@ set_tests_properties(
                SKIP_REGULAR_EXPRESSION
                "${ROCPROFV3_TESTS_PC_SAMPLING_SKIP_REGEX}"
                DISABLED
-               "${IS_PC_SAMPLING_DISABLED}")
+               "${IS_DISABLED}")
 
 # ========================= Validation tests
 
@@ -123,7 +132,7 @@ set_tests_properties(
         SKIP_REGULAR_EXPRESSION
         "${ROCPROFV3_TESTS_PC_SAMPLING_SKIP_REGEX}"
         DISABLED
-        "${IS_PC_SAMPLING_DISABLED}")
+        "${IS_DISABLED}")
 
 add_test(
     NAME rocprofv3-test-pc-sampling-host-trap-transpose-multiple-agents-input-json-validate
@@ -150,7 +159,7 @@ set_tests_properties(
         SKIP_REGULAR_EXPRESSION
         "${ROCPROFV3_TESTS_PC_SAMPLING_SKIP_REGEX}"
         DISABLED
-        "${IS_PC_SAMPLING_DISABLED}")
+        "${IS_DISABLED}")
 
 add_test(
     NAME rocprofv3-test-pc-sampling-host-trap-transpose-multiple-agents-input-yaml-validate
@@ -177,4 +186,4 @@ set_tests_properties(
         SKIP_REGULAR_EXPRESSION
         "${ROCPROFV3_TESTS_PC_SAMPLING_SKIP_REGEX}"
         DISABLED
-        "${IS_PC_SAMPLING_DISABLED}")
+        "${IS_DISABLED}")

@@ -50,6 +50,15 @@ rocprofiler_samples_get_ld_library_path_env(LIBRARY_PATH_ENV)
 # Check if PC sampling is disabled and whether we should disable the test
 rocprofiler_sdk_pc_sampling_disabled(IS_PC_SAMPLING_DISABLED)
 
+# For some reason, ThreadSanitizer reports a lock-order-invervsion error when running the
+# transpose application standalone. Thus, we disable ThreadSanitizer on PC sampling tests
+# that are using transpose application.
+if(IS_PC_SAMPLING_DISABLED OR ROCPROFILER_MEMCHECK STREQUAL "ThreadSanitizer")
+    set(IS_DISABLED ON)
+else()
+    set(IS_DISABLED OFF)
+endif()
+
 set(pc-sampling-env ${PRELOAD_ENV} ${LIBRARY_PATH_ENV})
 
 add_test(NAME pc-sampling COMMAND $<TARGET_FILE:pc-sampling>)
@@ -67,4 +76,4 @@ set_tests_properties(
                SKIP_REGULAR_EXPRESSION
                "PC sampling unavailable"
                DISABLED
-               "${IS_PC_SAMPLING_DISABLED}")
+               "${IS_DISABLED}")
