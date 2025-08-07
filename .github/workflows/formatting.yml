@@ -17,6 +17,8 @@ concurrency:
 
 jobs:
   cmake:
+    # Only run this job when targeting amd-staging, amd-mainline, or amd-npi branches
+    if: ${{ contains(fromJSON('["amd-staging", "amd-mainline", "amd-npi"]'), github.base_ref) || contains(fromJSON('["refs/heads/amd-staging", "refs/heads/amd-mainline", "refs/heads/amd-npi"]'), github.ref) }}
     runs-on: AMD-ROCm-Internal-dev1
     env:
       ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -50,6 +52,8 @@ jobs:
         fi
 
   source:
+    # Only run this job when targeting amd-staging, amd-mainline, or amd-npi branches
+    if: ${{ contains(fromJSON('["amd-staging", "amd-mainline", "amd-npi"]'), github.base_ref) || contains(fromJSON('["refs/heads/amd-staging", "refs/heads/amd-mainline", "refs/heads/amd-npi"]'), github.ref) }}
     runs-on: AMD-ROCm-Internal-dev1
     container: rocm/dev-ubuntu-22.04:latest
     env:
@@ -86,6 +90,8 @@ jobs:
         fi
 
   python:
+    # Only run this job when targeting amd-staging, amd-mainline, or amd-npi branches
+    if: ${{ contains(fromJSON('["amd-staging", "amd-mainline", "amd-npi"]'), github.base_ref) || contains(fromJSON('["refs/heads/amd-staging", "refs/heads/amd-mainline", "refs/heads/amd-npi"]'), github.ref) }}
     runs-on: AMD-ROCm-Internal-dev1
     strategy:
       matrix:
@@ -125,6 +131,8 @@ jobs:
         fi
 
   missing-new-line:
+    # Only run this job when targeting amd-staging, amd-mainline, or amd-npi branches
+    if: ${{ contains(fromJSON('["amd-staging", "amd-mainline", "amd-npi"]'), github.base_ref) || contains(fromJSON('["refs/heads/amd-staging", "refs/heads/amd-mainline", "refs/heads/amd-npi"]'), github.ref) }}
     runs-on: AMD-ROCm-Internal-dev1
 
     steps:

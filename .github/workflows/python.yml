@@ -16,6 +16,8 @@ concurrency:
 
 jobs:
   linting:
+    # Only run this job when targeting amd-staging, amd-mainline, or amd-npi branches
+    if: ${{ contains(fromJSON('["amd-staging", "amd-mainline", "amd-npi"]'), github.base_ref) || contains(fromJSON('["refs/heads/amd-staging", "refs/heads/amd-mainline", "refs/heads/amd-npi"]'), github.ref) }}
     runs-on: AMD-ROCm-Internal-dev1
     strategy:
       matrix:
