@@ -401,11 +401,11 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
         "write_perfetto",
         [](rocpd::RocpdImportData& data, const tool::output_config& output_cfg) -> bool {
             // ORDER BY expression for kernel dispatches
-            constexpr auto kernels_order_by =
-                "agent_absolute_index ASC, stream_id ASC, queue_id ASC, start ASC, end DESC";
-
-            constexpr auto region_order_by = "start ASC, end DESC";
-            constexpr auto sample_order_by = "timestamp ASC";
+            constexpr auto region_order_by   = "start ASC, end ASC";
+            constexpr auto sample_order_by   = "timestamp ASC";
+            constexpr auto kernels_order_by  = "stream_id ASC, queue_id ASC, start ASC, end ASC";
+            constexpr auto memcpy_order_by   = "stream_id ASC, queue_id ASC, start ASC, end ASC";
+            constexpr auto memalloc_order_by = "stream_id ASC, queue_id ASC, start ASC, end ASC";
 
             auto sqlgen_perf = common::simple_timer{
                 fmt::format("Perfetto generation from {} SQL database(s)", data.size())};
@@ -445,10 +445,10 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
                         conn, select_guid_nid_pid("kernels"), kernels_order_by};
 
                     auto memory_allocations = rocpd::sql_generator<rocpd::types::memory_allocation>{
-                        conn, select_guid_nid_pid("memory_allocations")};
+                        conn, select_guid_nid_pid("memory_allocations"), memalloc_order_by};
 
                     auto memory_copies = rocpd::sql_generator<rocpd::types::memory_copies>{
-                        conn, select_guid_nid_pid("memory_copies")};
+                        conn, select_guid_nid_pid("memory_copies"), memcpy_order_by};
 
                     auto regions = rocpd::sql_generator<rocpd::types::region>{
                         conn, select_guid_nid_pid("regions"), region_order_by};
@@ -485,101 +485,40 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
 
             if(data.empty()) return;
 
-            auto csv_manager = rocpd::output::CsvManager{output_cfg};
+            auto  csv_manager = rocpd::output::CsvManager{output_cfg};
+            auto* conn        = rocpd::interop::get_connection(std::move(data.connection));
 
-            for(auto obj : {data.connection})
-            {
-                auto* conn  = rocpd::interop::get_connection(std::move(obj));
-                auto  nodes = rocpd::read<rocpd::types::node>(conn);
+            constexpr auto region_order_by = "start ASC, end ASC";
 
-                for(const auto& nitr : nodes)
-                {
-                    auto agents = rocpd::read<rocpd::types::agent>(
-                        conn, fmt::format("WHERE guid = '{}' AND nid = {}", nitr.guid, nitr.id));
-                    auto processes = rocpd::read<rocpd::types::process>(
-                        conn, fmt::format("WHERE guid = '{}' AND nid = {}", nitr.guid, nitr.id));
+            auto select_guid_nid_pid = [](std::string_view tbl,
+                                          std::string_view where_extra_condition = {}) {
+                return fmt::format("SELECT * FROM {} {}", tbl, where_extra_condition);
+            };
 
-                    for(const auto& pitr : processes)
-                    {
-                        ROCP_FATAL_IF(pitr.nid != nitr.id || pitr.guid != nitr.guid)
-                            << fmt::format("Found process with a mismatched nid/guid. process: "
-                                           "{}/{} vs. node: {}/{}",
-                                           pitr.nid,
-                                           pitr.guid,
-                                           nitr.id,
-                                           nitr.guid);
-                        auto _sqlgen_csv = common::simple_timer{fmt::format(
-                            "CSV generation from SQL for process {} (total)", pitr.pid)};
+            auto agents  = rocpd::read<rocpd::types::agent>(conn);
+            auto kernels = rocpd::sql_generator<rocpd::types::kernel_dispatch>{
+                conn, select_guid_nid_pid("kernels"), region_order_by};
+            auto memory_copies = rocpd::sql_generator<rocpd::types::memory_copies>{
+                conn, select_guid_nid_pid("memory_copies"), region_order_by};
+            auto memory_allocations = rocpd::sql_generator<rocpd::types::memory_allocation>{
+                conn, select_guid_nid_pid("memory_allocations"), region_order_by};
+            auto region_api_calls = rocpd::sql_generator<rocpd::types::region>{
+                conn, select_guid_nid_pid("regions"), region_order_by};
+            auto counters_calls = rocpd::sql_generator<rocpd::types::counter>{
+                conn, select_guid_nid_pid("kernel_pmc_events"), region_order_by};
+            auto scratch_memory_calls = rocpd::sql_generator<rocpd::types::scratch_memory>{
+                conn,
+                select_guid_nid_pid("memory_allocations", "WHERE level = 'SCRATCH'"),
+                region_order_by};
 
-                        auto select_guid_nid_pid = [&nitr, &pitr](std::string_view tbl,
-                                                                  std::string_view
-                                                                      where_extra_condition = {}) {
-                            return fmt::format(
-                                "SELECT * FROM {} WHERE guid = '{}' AND nid = {} AND pid = {} {}",
-                                tbl,
-                                pitr.guid,
-                                nitr.id,
-                                pitr.pid,
-                                where_extra_condition);
-                        };
-
-                        rocpd::output::write_agent_info_csv(csv_manager, agents);
-
-                        constexpr auto region_order_by = "start ASC, end DESC";
-
-                        auto kernels = rocpd::sql_generator<rocpd::types::kernel_dispatch>{
-                            conn, select_guid_nid_pid("kernels"), region_order_by};
-                        auto memory_copies = rocpd::sql_generator<rocpd::types::memory_copies>{
-                            conn, select_guid_nid_pid("memory_copies"), region_order_by};
-                        auto memory_allocations =
-                            rocpd::sql_generator<rocpd::types::memory_allocation>{
-                                conn, select_guid_nid_pid("memory_allocations"), region_order_by};
-                        auto hip_api_calls = rocpd::sql_generator<rocpd::types::region>{
-                            conn,
-                            select_guid_nid_pid("regions", "AND category LIKE 'HIP_%'"),
-                            region_order_by};
-                        auto hsa_api_calls = rocpd::sql_generator<rocpd::types::region>{
-                            conn,
-                            select_guid_nid_pid("regions", "AND category LIKE 'HSA_%'"),
-                            region_order_by};
-                        auto marker_api_calls = rocpd::sql_generator<rocpd::types::region>{
-                            conn,
-                            select_guid_nid_pid("regions_and_samples",
-                                                "AND category LIKE 'MARKER_%'"),
-                            region_order_by};
-                        auto counters_calls = rocpd::sql_generator<rocpd::types::counter>{
-                            conn, select_guid_nid_pid("kernel_pmc_events"), region_order_by};
-                        auto scratch_memory_calls =
-                            rocpd::sql_generator<rocpd::types::scratch_memory>{
-                                conn, select_guid_nid_pid("scratch_memory"), region_order_by};
-                        auto rccl_calls = rocpd::sql_generator<rocpd::types::region>{
-                            conn,
-                            select_guid_nid_pid("regions", "AND category LIKE 'RCCL_%'"),
-                            region_order_by};
-                        auto rocdecode_calls = rocpd::sql_generator<rocpd::types::region>{
-                            conn,
-                            select_guid_nid_pid("regions", "AND category LIKE 'ROCDECODE_%'"),
-                            region_order_by};
-                        auto rocjpeg_calls = rocpd::sql_generator<rocpd::types::region>{
-                            conn,
-                            select_guid_nid_pid("regions", "AND category LIKE 'ROCJPEG_%'"),
-                            region_order_by};
-
-                        rocpd::output::write_csvs(csv_manager,
-                                                  kernels,
-                                                  memory_copies,
-                                                  memory_allocations,
-                                                  hip_api_calls,
-                                                  hsa_api_calls,
-                                                  marker_api_calls,
-                                                  counters_calls,
-                                                  scratch_memory_calls,
-                                                  rccl_calls,
-                                                  rocdecode_calls,
-                                                  rocjpeg_calls);
-                    }
-                }
-            }
+            rocpd::output::write_csv(csv_manager,
+                                     agents,
+                                     kernels,
+                                     memory_copies,
+                                     memory_allocations,
+                                     region_api_calls,
+                                     counters_calls,
+                                     scratch_memory_calls);
         },
         "Write trace data to CSV files");
 
@@ -598,7 +537,7 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
             };
 
             constexpr auto kernels_order_by =
-                "agent_absolute_index ASC, stream_id ASC, queue_id ASC, start ASC, end DESC";
+                "agent_absolute_index ASC, stream_id ASC, queue_id ASC, start ASC, end ASC";
 
             // to initialise the OTF@ session properly we need to know:
             // (1) the process with the earliest start time
@@ -694,7 +633,7 @@ PYBIND11_MODULE(libpyrocpd, pyrocpd)
                                                    where_extra_condition);
                             };
 
-                        constexpr auto region_order_by = "start ASC, end DESC";
+                        constexpr auto region_order_by = "start ASC, end ASC";
 
                         auto _sqlgen_otf2 = common::simple_timer{fmt::format(
                             "OTF2 generation from SQL for process {} (total)", pitr.pid)};

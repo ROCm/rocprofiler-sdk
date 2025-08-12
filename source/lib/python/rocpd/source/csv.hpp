@@ -59,6 +59,7 @@ enum class CsvType
     MEMORY_COPY,
     MEMORY_ALLOCATION,
     SCRATCH_MEMORY,
+    REGION_API,
     HIP_API,
     HSA_CSV_API,
     MARKER,
@@ -71,13 +72,15 @@ enum class CsvType
 class CsvManager
 {
 public:
+    using output_stream_t = std::ofstream;
+
     CsvManager(rocprofiler::tool::output_config output_cfg);
     ~CsvManager();
 
     rocprofiler::tool::output_config config;
     std::map<CsvType, CsvFileConfig> csv_configs;
 
-    std::ofstream& get_stream(CsvType type);
+    output_stream_t& get_stream(CsvType type);
 
     bool has_stream(CsvType type) const;
     bool initialize_csv_file(CsvType type);
@@ -94,27 +97,18 @@ public:
     }
 
 private:
-    std::map<CsvType, std::ofstream> streams;
-    std::map<CsvType, std::string>   file_paths;
-
-    bool ensure_output_directory() const;
+    std::map<CsvType, output_stream_t> streams    = {};
+    std::map<CsvType, std::string>     file_paths = {};
 };
 
 void
-write_agent_info_csv(CsvManager& csv_manager, const std::vector<rocpd::types::agent>& agents);
-
-void
-write_csvs(CsvManager&                                                          csv_manager,
-           const rocprofiler::tool::generator<rocpd::types::kernel_dispatch>&   kernel_dispatch,
-           const rocprofiler::tool::generator<rocpd::types::memory_copies>&     memory_copies,
-           const rocprofiler::tool::generator<rocpd::types::memory_allocation>& memory_allocations,
-           const rocprofiler::tool::generator<rocpd::types::region>&            hip_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&            hsa_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&            marker_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::counter>&           counters_calls,
-           const rocprofiler::tool::generator<rocpd::types::scratch_memory>& scratch_memory_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rccl_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rocdecode_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rocjpeg_calls);
+write_csv(CsvManager&                                                          csv_manager,
+          const std::vector<rocpd::types::agent>&                              agents,
+          const rocprofiler::tool::generator<rocpd::types::kernel_dispatch>&   kernel_dispatch,
+          const rocprofiler::tool::generator<rocpd::types::memory_copies>&     memory_copies,
+          const rocprofiler::tool::generator<rocpd::types::memory_allocation>& memory_allocations,
+          const rocprofiler::tool::generator<rocpd::types::region>&            region_api_calls,
+          const rocprofiler::tool::generator<rocpd::types::counter>&           counters_calls,
+          const rocprofiler::tool::generator<rocpd::types::scratch_memory>& scratch_memory_calls);
 }  // namespace output
 }  // namespace rocpd
