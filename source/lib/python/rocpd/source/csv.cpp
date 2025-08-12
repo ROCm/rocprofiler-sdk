@@ -297,18 +297,23 @@ write_memory_allocation_csv(
     CsvManager&                                                          csv_manager,
     const rocprofiler::tool::generator<rocpd::types::memory_allocation>& memory_alloc_gen)
 {
+    static auto operation_name_mapping = std::unordered_map<std::string_view, std::string_view>{
+        {"ALLOC", "ALLOCATE"},
+    };
+
     process_data_to_csv(
         csv_manager,
         CsvType::MEMORY_ALLOCATION,
         memory_alloc_gen,
         [](CsvManager& cm, CsvType type, const rocpd::types::memory_allocation& malloc) {
-            std::string normalized_type = malloc.type;
-            if(normalized_type == "ALLOC")
+            auto _optype = std::string_view{malloc.type};
+            if(auto mitr = operation_name_mapping.find(_optype);
+               mitr != operation_name_mapping.end())
             {
-                normalized_type = "ALLOCATE";
+                _optype = mitr->second;
             }
 
-            std::string operation = fmt::format("MEMORY_ALLOCATION_{}", normalized_type);
+            std::string operation = fmt::format("MEMORY_ALLOCATION_{}", _optype);
 
             std::string agent_identifier = create_agent_index(cm.config.agent_index_value,
                                                               malloc.agent_absolute_index,
