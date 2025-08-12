@@ -39,4 +39,4 @@
 	url = https://github.com/pybind/pybind11.git
 [submodule "external/gotcha"]
 	path = external/gotcha
-	url = https://jrmadsen@github.com/jrmadsen/GOTCHA
+	url = https://github.com/ROCm/GOTCHA
