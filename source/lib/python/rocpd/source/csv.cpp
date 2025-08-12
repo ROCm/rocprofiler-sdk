@@ -242,7 +242,7 @@ write_kernel_csv(
                           kernel.end,
                           kernel.lds_size,
                           kernel.scratch_size,
-                          kernel.vgpr_count,
+                          kernel.arch_vgpr_count,
                           kernel.accum_vgpr_count,
                           kernel.sgpr_count,
                           kernel.workgroup_size.x,
