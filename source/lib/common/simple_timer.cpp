@@ -22,6 +22,7 @@
 
 #include "lib/common/simple_timer.hpp"
 #include "lib/common/logging.hpp"
+#include "lib/common/synchronized.hpp"
 
 #include <fmt/format.h>
 
@@ -35,14 +36,16 @@ namespace rocprofiler
 {
 namespace common
 {
-simple_timer::simple_timer(std::string&& label)
+simple_timer::simple_timer(std::string&& label, int log_level)
 : m_label{std::move(label)}
+, m_log_level{log_level}
 {
     start();
 }
 
-simple_timer::simple_timer(std::string&& label, defer_start)
+simple_timer::simple_timer(std::string&& label, defer_start, int log_level)
 : m_label{std::move(label)}
+, m_log_level{log_level}
 {}
 
 simple_timer::~simple_timer()
@@ -52,19 +55,21 @@ simple_timer::~simple_timer()
     else if(m_end <= m_beg)
         stop();
 
-    ROCP_WARNING << fmt::format("{} :: {:12.6f} sec", m_label, get());
+    report();
 }
 
-void
+simple_timer&
 simple_timer::start()
 {
     m_beg = clock_type::now();
+    return *this;
 }
 
-void
+simple_timer&
 simple_timer::stop()
 {
     m_end = clock_type::now();
+    return *this;
 }
 
 double
@@ -79,6 +84,51 @@ simple_timer::get_nsec() const
 {
     if(m_end <= m_beg) return {};
     return std::chrono::duration_cast<std::chrono::nanoseconds>(m_end - m_beg).count();
+}
+
+simple_timer&
+simple_timer::report()
+{
+    static auto max_width = Synchronized<uint64_t>{0};
+    max_width.wlock(
+        [](auto& _max_width, auto _w) {
+            if(_w > _max_width) _max_width = _w;
+            if(_max_width > 120) _max_width = 120;
+        },
+        m_label.size());
+
+    auto _width = max_width.get();
+
+    switch(m_log_level)
+    {
+        case ROCP_LOG_LEVEL_WARNING:
+        {
+            ROCP_WARNING << fmt::format("{:<{}} :: {:12.6f} sec", m_label, _width, get());
+            break;
+        }
+        case ROCP_LOG_LEVEL_ERROR:
+        {
+            ROCP_ERROR << fmt::format("{:<{}} :: {:12.6f} sec", m_label, _width, get());
+            break;
+        }
+        case ROCP_LOG_LEVEL_INFO:
+        {
+            ROCP_INFO << fmt::format("{:<{}} :: {:12.6f} sec", m_label, _width, get());
+            break;
+        }
+        case ROCP_LOG_LEVEL_TRACE:
+        {
+            ROCP_TRACE << fmt::format("{:<{}} :: {:12.6f} sec", m_label, _width, get());
+            break;
+        }
+        case ROCP_LOG_LEVEL_NONE:
+        default:
+        {
+            break;
+        }
+    }
+
+    return *this;
 }
 
 std::ostream&

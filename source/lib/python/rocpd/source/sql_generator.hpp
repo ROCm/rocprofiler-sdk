@@ -25,7 +25,9 @@
 #include "lib/python/rocpd/source/serialization/sql.hpp"
 
 #include "lib/common/container/ring_buffer.hpp"
+#include "lib/common/logging.hpp"
 #include "lib/common/mpl.hpp"
+#include "lib/common/simple_timer.hpp"
 #include "lib/common/units.hpp"
 #include "lib/output/domain_type.hpp"
 #include "lib/output/generator.hpp"
@@ -131,16 +133,12 @@ sql_generator<Tp>::get(size_t idx) const
 
     if(idx < static_cast<size_t>(m_num_chunks))
     {
-        // auto _offset = idx * m_chunk_size;
-        // auto _limit  = m_chunk_size;
-        // auto _query  = fmt::format("{}{} LIMIT {} OFFSET {};", m_query, m_order, _limit,
-        // _offset);
-
-        // auto* conn = const_cast<sqlite3*>(m_conn);
-        // auto  ar   = cereal::SQLite3InputArchive{conn, _query};
-
         auto& ar = const_cast<archive_t&>(m_archive);
         ar.set_chunk_index(idx);
+
+        auto _query_perf = rocprofiler::common::simple_timer{
+            fmt::format("SQL Query {} of {} :: {}", idx, m_num_chunks, m_query),
+            ROCP_LOG_LEVEL_INFO};
 
         cereal::load(ar, _data);
 
@@ -157,5 +155,20 @@ sql_generator<Tp>::get(size_t idx) const
     }
 
     return _data;
+}
+
+template <typename Tp>
+auto
+read_sql_query(sqlite3* conn, std::string_view query)
+{
+    auto data = std::vector<Tp>{};
+    if(conn)
+    {
+        auto _query_perf = rocprofiler::common::simple_timer{fmt::format("SQL Query :: {}", query),
+                                                             ROCP_LOG_LEVEL_INFO};
+        auto ar          = cereal::SQLite3InputArchive{conn, fmt::format("{}", query)};
+        cereal::load(ar, data);
+    }
+    return data;
 }
 }  // namespace rocpd

@@ -23,6 +23,7 @@
 #pragma once
 
 #include "lib/common/defines.hpp"
+#include "lib/common/logging.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -41,16 +42,17 @@ struct simple_timer
 {
     using duration_t = std::chrono::duration<double>;
 
-    explicit simple_timer(std::string&& label);
-    explicit simple_timer(std::string&& label, defer_start);
+    explicit simple_timer(std::string&& label, int log_level = ROCP_LOG_LEVEL_WARNING);
+    explicit simple_timer(std::string&& label, defer_start, int log_level = ROCP_LOG_LEVEL_WARNING);
     ~simple_timer();
 
-    void             start();
-    void             stop();
+    simple_timer&    start();
+    simple_timer&    stop();
     double           get() const;
     size_t           get_nsec() const;
     std::string_view label() const { return std::string_view{m_label}; }
     void             set_quiet(bool v) const { m_quiet = v; }
+    simple_timer&    report();
 
     friend std::ostream& operator<<(std::ostream& _os, const simple_timer& _val);
 
@@ -58,10 +60,11 @@ private:
     using clock_type   = std::chrono::steady_clock;
     using time_point_t = std::chrono::time_point<clock_type, std::chrono::nanoseconds>;
 
-    std::string  m_label = {};
-    time_point_t m_beg   = {};
-    time_point_t m_end   = {};
-    mutable bool m_quiet = false;
+    std::string  m_label     = {};
+    time_point_t m_beg       = {};
+    time_point_t m_end       = {};
+    int          m_log_level = ROCP_LOG_LEVEL_WARNING;
+    mutable bool m_quiet     = false;
 };
 }  // namespace common
 }  // namespace rocprofiler

@@ -25,6 +25,7 @@
 
 from .importer import RocpdImportData
 from .time_window import apply_time_window
+from .filter import apply_filter
 from . import output_config
 from . import libpyrocpd
 
@@ -33,11 +34,12 @@ def write_pftrace(importData, config):
     return libpyrocpd.write_perfetto(importData, config)
 
 
-def execute(input, config=None, window_args=None, **kwargs):
+def execute(input, config=None, window_args=None, filter_args=None, **kwargs):
 
     importData = RocpdImportData(input)
 
     apply_time_window(importData, **window_args)
+    apply_filter(importData, **filter_args)
 
     config = (
         output_config.output_config(**kwargs)
@@ -90,12 +92,28 @@ def add_args(parser):
         default=False,
     )
 
+    pftrace_options.add_argument(
+        "--annotate-args",
+        help="Add the function arguments (when available) to the Perfetto debug annotations",
+        action="store_true",
+        default=False,
+    )
+
+    pftrace_options.add_argument(
+        "--annotate-pmc",
+        help="Add the function PMC values (when available) to the Perfetto debug annotations",
+        action="store_true",
+        default=False,
+    )
+
     return [
         "perfetto_backend",
         "perfetto_buffer_fill_policy",
         "perfetto_buffer_size",
         "perfetto_shmem_size_hint",
         "group_by_queue",
+        "annotate_args",
+        "annotate_pmc",
     ]
 
 
@@ -116,7 +134,8 @@ def main(argv=None):
     from .time_window import process_args as process_args_time_window
     from .output_config import add_args as add_args_output_config
     from .output_config import process_args as process_args_output_config
-    from .output_config import add_generic_args, process_generic_args
+    from .filter import add_args as add_args_filter
+    from .filter import process_args as process_args_filter
 
     parser = argparse.ArgumentParser(
         description="Convert rocPD to Perfetto file", allow_abbrev=False
@@ -135,25 +154,25 @@ def main(argv=None):
 
     valid_out_config_args = add_args_output_config(parser)
     valid_pftrace_args = add_args(parser)
-    valid_generic_args = add_generic_args(parser)
+    valid_filter_args = add_args_filter(parser)
     valid_time_window_args = add_args_time_window(parser)
 
     args = parser.parse_args(argv)
 
     out_cfg_args = process_args_output_config(args, valid_out_config_args)
     pftrace_args = process_args(args, valid_pftrace_args)
-    generic_out_cfg_args = process_generic_args(args, valid_generic_args)
+    filter_args = process_args_filter(args, valid_filter_args)
     window_args = process_args_time_window(args, valid_time_window_args)
 
     all_args = {
         **pftrace_args,
         **out_cfg_args,
-        **generic_out_cfg_args,
     }
 
     execute(
         args.input,
         window_args=window_args,
+        filter_args=filter_args,
         **all_args,
     )
 

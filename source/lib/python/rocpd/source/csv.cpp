@@ -24,7 +24,9 @@
 
 #include "lib/common/defines.hpp"
 #include "lib/common/hasher.hpp"
+#include "lib/common/logging.hpp"
 #include "lib/common/mpl.hpp"
+#include "lib/common/simple_timer.hpp"
 #include "lib/output/csv.hpp"
 #include "lib/output/csv_output_file.hpp"
 #include "lib/output/generator.hpp"
@@ -48,8 +50,6 @@
 #include <string>
 #include <vector>
 
-namespace fs = std::filesystem;
-
 namespace
 {
 const std::string STATS_HEADER = "\"Name\",\"Calls\",\"TotalDurationNs\","
@@ -66,12 +66,6 @@ namespace output
 CsvManager::CsvManager(rocprofiler::tool::output_config output_cfg)
 : config{std::move(output_cfg)}
 {
-    if(!ensure_output_directory())
-    {
-        ROCP_ERROR << "Failed to create csv output directory: " << config.output_path;
-        return;
-    }
-
     this->csv_configs = {
         {CsvType::KERNEL_DISPATCH,
          {"kernel_trace.csv",
@@ -81,31 +75,32 @@ CsvManager::CsvManager(rocprofiler::tool::output_config output_cfg)
           "\"Workgroup_Size_X\",\"Workgroup_Size_Y\",\"Workgroup_Size_Z\","
           "\"Grid_Size_X\",\"Grid_Size_Y\",\"Grid_Size_Z\""}},
         {CsvType::MEMORY_COPY,
-         {"memory_copy_trace.csv",
+         {"memory_copy_trace",
           "\"Guid\",\"Kind\",\"Direction\",\"Stream_Id\",\"Source_Agent_Id\","
           "\"Destination_Agent_"
           "Id\","
           "\"Correlation_Id\",\"Start_Timestamp\",\"End_Timestamp\""}},
         {CsvType::MEMORY_ALLOCATION,
-         {"memory_allocation_trace.csv",
+         {"memory_allocation_trace",
           "\"Guid\",\"Kind\",\"Operation\",\"Agent_Id\",\"Allocation_Size\","
           "\"Address\","
           "\"Correlation_Id\",\"Start_Timestamp\",\"End_Timestamp\""}},
         {CsvType::SCRATCH_MEMORY,
-         {"scratch_memory_trace.csv",
+         {"scratch_memory_trace",
           "\"Kind\",\"Operation\",\"Agent_Id\",\"Queue_Id\",\"Thread_Id\","
           "\"Alloc_Flags\",\"Start_"
           "Timestamp\",\"End_Timestamp\""}},
 
-        {CsvType::HIP_API, {"hip_api_trace.csv", API_TRACE_HEADER}},
-        {CsvType::HSA_CSV_API, {"hsa_api_trace.csv", API_TRACE_HEADER}},
-        {CsvType::MARKER, {"marker_api_trace.csv", API_TRACE_HEADER}},
-        {CsvType::RCCL_API, {"rccl_api_trace.csv", API_TRACE_HEADER}},
-        {CsvType::ROCDECODE_API, {"rocdecode_api_trace.csv", API_TRACE_HEADER}},
-        {CsvType::ROCJPEG_API, {"rocjpeg_api_trace.csv", API_TRACE_HEADER}},
+        {CsvType::REGION_API, {"api_trace", API_TRACE_HEADER}},
+        {CsvType::HIP_API, {"hip_api_trace", API_TRACE_HEADER}},
+        {CsvType::HSA_CSV_API, {"hsa_api_trace", API_TRACE_HEADER}},
+        {CsvType::MARKER, {"marker_api_trace", API_TRACE_HEADER}},
+        {CsvType::RCCL_API, {"rccl_api_trace", API_TRACE_HEADER}},
+        {CsvType::ROCDECODE_API, {"rocdecode_api_trace", API_TRACE_HEADER}},
+        {CsvType::ROCJPEG_API, {"rocjpeg_api_trace", API_TRACE_HEADER}},
 
         {CsvType::COUNTER,
-         {"counter_collection.csv",
+         {"counter_collection",
           "\"Pid\",\"Correlation_Id\",\"Dispatch_Id\",\"Agent_Id\",\"Queue_Id\","
           "\"Process_Id\","
           "\"Thread_Id\","
@@ -115,20 +110,6 @@ CsvManager::CsvManager(rocprofiler::tool::output_config output_cfg)
           "\"Counter_Name\",\"Counter_Value\",\"Start_Timestamp\",\"End_"
           "Timestamp\""}},
     };
-}
-
-bool
-CsvManager::ensure_output_directory() const
-{
-    try
-    {
-        fs::create_directories(config.output_path);
-        return true;
-    } catch(const std::exception& e)
-    {
-        ROCP_ERROR << "Failed to create directory: " << e.what();
-        return false;
-    }
 }
 
 CsvManager::~CsvManager()
@@ -143,7 +124,7 @@ CsvManager::~CsvManager()
     }
 }
 
-std::ofstream&
+CsvManager::output_stream_t&
 CsvManager::get_stream(CsvType type)
 {
     return streams[type];
@@ -168,21 +149,19 @@ CsvManager::initialize_csv_file(CsvType type)
 
     const auto& cfg = csv_configs[type];
 
-    fs::path output_dir = config.output_path;
-    fs::path filename =
-        config.output_file.empty() ? cfg.filename : config.output_file + "_" + cfg.filename;
+    auto  output_file = rocprofiler::tool::get_output_filename(config, cfg.filename, ".csv");
+    auto& stream      = streams.emplace(type, std::move(output_file)).first->second;
 
-    file_paths[type] = (output_dir / filename).string();
-
-    auto& path   = file_paths[type];
-    auto& stream = streams[type];
-
-    stream.open(path, std::ios::out);
     if(!stream.is_open())
     {
-        ROCP_ERROR << "Failed to open CSV output file: " << path;
+        ROCP_ERROR << fmt::format("Failed to open CSV output file: '{}'", output_file);
         return false;
     }
+
+    // populate file paths
+    file_paths[type] = output_file;
+
+    ROCP_ERROR << "Opened result file: " << output_file;
 
     stream << cfg.header << '\n';
     return true;
@@ -192,15 +171,7 @@ template <typename DataType>
 bool
 has_any_data(const rocprofiler::tool::generator<DataType>& data_gen)
 {
-    for(auto ditr : data_gen)
-    {
-        auto gen = data_gen.get(ditr);
-        if(begin(gen) != end(gen))
-        {
-            return true;
-        }
-    }
-    return false;
+    return (data_gen.empty() == false);
 }
 
 template <typename DataType, typename Processor>
@@ -210,16 +181,29 @@ process_data_to_csv(CsvManager&                                   csv_manager,
                     const rocprofiler::tool::generator<DataType>& data_gen,
                     Processor                                     process_func)
 {
-    if(!has_any_data(data_gen)) return;
+    if(!has_any_data(data_gen))
+    {
+        ROCP_INFO << fmt::format("No data found for CSV type: {}, skipping CSV generation",
+                                 csv_manager.csv_configs.at(csv_type).filename);
+        return;
+    }
 
-    if(!csv_manager.initialize_csv_file(csv_type)) return;
+    if(!csv_manager.initialize_csv_file(csv_type))
+    {
+        ROCP_INFO << fmt::format(
+            "CSV manager failed to initialize for CSV type: {}, skipping CSV generation",
+            csv_manager.csv_configs.at(csv_type).filename);
+        return;
+    }
+
+    auto csvgen_perf = rocprofiler::common::simple_timer{
+        fmt::format("CSV generation :: {}", csv_manager.csv_configs.at(csv_type).filename)};
 
     for(auto ditr : data_gen)
     {
-        auto gen = data_gen.get(ditr);
-        for(auto it = begin(gen); it != end(gen); ++it)
+        for(const auto& itr : data_gen.get(ditr))
         {
-            process_func(csv_manager, csv_type, *it);
+            process_func(csv_manager, csv_type, itr);
         }
     }
 }
@@ -237,8 +221,8 @@ write_kernel_csv(
             std::string kernel_identifier = cm.config.kernel_rename ? kernel.region : kernel.name;
 
             std::string agent_identifier = create_agent_index(cm.config.agent_index_value,
-                                                              kernel.agent_abs_index,
-                                                              kernel.agent_log_index,
+                                                              kernel.agent_absolute_index,
+                                                              kernel.agent_logical_index,
                                                               kernel.agent_type_index,
                                                               std::string_view(kernel.agent_type))
                                                .as_string();
@@ -258,7 +242,7 @@ write_kernel_csv(
                           kernel.end,
                           kernel.lds_size,
                           kernel.scratch_size,
-                          kernel.vgpr_count,
+                          kernel.arch_vgpr_count,
                           kernel.accum_vgpr_count,
                           kernel.sgpr_count,
                           kernel.workgroup_size.x,
@@ -281,16 +265,16 @@ write_memory_copy_csv(
                         [](CsvManager& cm, CsvType type, const rocpd::types::memory_copies& mcopy) {
                             std::string src_agent_identifier =
                                 create_agent_index(cm.config.agent_index_value,
-                                                   mcopy.src_agent_abs_index,
-                                                   mcopy.src_agent_log_index,
+                                                   mcopy.src_agent_absolute_index,
+                                                   mcopy.src_agent_logical_index,
                                                    mcopy.src_agent_type_index,
                                                    std::string_view(mcopy.src_agent_type))
                                     .as_string();
 
                             std::string dst_agent_identifier =
                                 create_agent_index(cm.config.agent_index_value,
-                                                   mcopy.dst_agent_abs_index,
-                                                   mcopy.dst_agent_log_index,
+                                                   mcopy.dst_agent_absolute_index,
+                                                   mcopy.dst_agent_logical_index,
                                                    mcopy.dst_agent_type_index,
                                                    std::string_view(mcopy.dst_agent_type))
                                     .as_string();
@@ -313,22 +297,27 @@ write_memory_allocation_csv(
     CsvManager&                                                          csv_manager,
     const rocprofiler::tool::generator<rocpd::types::memory_allocation>& memory_alloc_gen)
 {
+    static auto operation_name_mapping = std::unordered_map<std::string_view, std::string_view>{
+        {"ALLOC", "ALLOCATE"},
+    };
+
     process_data_to_csv(
         csv_manager,
         CsvType::MEMORY_ALLOCATION,
         memory_alloc_gen,
         [](CsvManager& cm, CsvType type, const rocpd::types::memory_allocation& malloc) {
-            std::string normalized_type = malloc.type;
-            if(normalized_type == "ALLOC")
+            auto _optype = std::string_view{malloc.type};
+            if(auto mitr = operation_name_mapping.find(_optype);
+               mitr != operation_name_mapping.end())
             {
-                normalized_type = "ALLOCATE";
+                _optype = mitr->second;
             }
 
-            std::string operation = fmt::format("MEMORY_ALLOCATION_{}", normalized_type);
+            std::string operation = fmt::format("MEMORY_ALLOCATION_{}", _optype);
 
             std::string agent_identifier = create_agent_index(cm.config.agent_index_value,
-                                                              malloc.agent_abs_index,
-                                                              malloc.agent_log_index,
+                                                              malloc.agent_absolute_index,
+                                                              malloc.agent_logical_index,
                                                               malloc.agent_type_index,
                                                               std::string_view(malloc.agent_type))
                                                .as_string();
@@ -362,8 +351,8 @@ write_scratch_memory_csv(
         [](CsvManager& cm, CsvType type, const rocpd::types::scratch_memory& scratch_mem) {
             std::string agent_identifier =
                 create_agent_index(cm.config.agent_index_value,
-                                   scratch_mem.agent_abs_index,
-                                   scratch_mem.agent_log_index,
+                                   scratch_mem.agent_absolute_index,
+                                   scratch_mem.agent_logical_index,
                                    scratch_mem.agent_type_index,
                                    std::string_view(scratch_mem.agent_type))
                     .as_string();
@@ -378,6 +367,26 @@ write_scratch_memory_csv(
                           scratch_mem.start,
                           scratch_mem.end);
         });
+}
+
+void
+write_region_api_csv(CsvManager&                                               csv_manager,
+                     const rocprofiler::tool::generator<rocpd::types::region>& region_api_gen)
+{
+    process_data_to_csv(csv_manager,
+                        CsvType::REGION_API,
+                        region_api_gen,
+                        [](CsvManager& cm, CsvType type, const rocpd::types::region& api) {
+                            cm.write_line(type,
+                                          fmt::format("\"{}\"", api.guid),
+                                          fmt::format("\"{}\"", api.category),
+                                          fmt::format("\"{}\"", api.name),
+                                          api.pid,
+                                          api.tid,
+                                          api.stack_id,
+                                          api.start,
+                                          api.end);
+                        });
 }
 
 void
@@ -454,18 +463,11 @@ write_marker_api_csv(CsvManager&                                               c
         for(const auto& record : marker_api_gen.get(ditr))
         {
             auto row_ss = std::stringstream{};
-            auto _name  = record.name;
-
-            if(record.has_extdata())
-            {
-                if(auto _extdata = record.get_extdata(); !_extdata.message.empty())
-                    _name = _extdata.message;
-            }
 
             marker_csv_encoder::write_row(row_ss,
                                           record.guid,
                                           record.category,
-                                          _name,
+                                          record.name,
                                           record.pid,
                                           record.tid,
                                           record.stack_id,
@@ -681,8 +683,8 @@ write_counters_csv(CsvManager&                                                cs
                         [](CsvManager& cm, CsvType type, const rocpd::types::counter& counter) {
                             std::string agent_identifier =
                                 create_agent_index(cm.config.agent_index_value,
-                                                   counter.agent_abs_index,
-                                                   counter.agent_log_index,
+                                                   counter.agent_absolute_index,
+                                                   counter.agent_logical_index,
                                                    counter.agent_type_index,
                                                    std::string_view(counter.agent_type))
                                     .as_string();
@@ -697,47 +699,37 @@ write_counters_csv(CsvManager&                                                cs
                                           counter.tid,
                                           counter.grid_size,
                                           counter.kernel_id,
-                                          fmt::format("\"{}\"", counter.kernel_name),
+                                          fmt::format("\"{}\"", counter.name),
                                           counter.workgroup_size,
-                                          counter.lds_block_size,
+                                          counter.lds_size,
                                           counter.scratch_size,
-                                          counter.vgpr_count,
+                                          counter.arch_vgpr_count,
                                           counter.accum_vgpr_count,
                                           counter.sgpr_count,
-                                          fmt::format("\"{}\"", counter.counter_name),
-                                          counter.value,
+                                          fmt::format("\"{}\"", counter.pmc_name),
+                                          counter.pmc_value,
                                           counter.start,
                                           counter.end);
                         });
 }
 
 void
-write_csvs(CsvManager&                                                          csv_manager,
-           const rocprofiler::tool::generator<rocpd::types::kernel_dispatch>&   kernel_dispatch,
-           const rocprofiler::tool::generator<rocpd::types::memory_copies>&     memory_copies,
-           const rocprofiler::tool::generator<rocpd::types::memory_allocation>& memory_allocations,
-           const rocprofiler::tool::generator<rocpd::types::region>&            hip_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&            hsa_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&            marker_api_calls,
-           const rocprofiler::tool::generator<rocpd::types::counter>&           counters_calls,
-           const rocprofiler::tool::generator<rocpd::types::scratch_memory>& scratch_memory_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rccl_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rocdecode_calls,
-           const rocprofiler::tool::generator<rocpd::types::region>&         rocjpeg_calls)
+write_csv(CsvManager&                                                          csv_manager,
+          const std::vector<rocpd::types::agent>&                              agents,
+          const rocprofiler::tool::generator<rocpd::types::kernel_dispatch>&   kernel_dispatch,
+          const rocprofiler::tool::generator<rocpd::types::memory_copies>&     memory_copies,
+          const rocprofiler::tool::generator<rocpd::types::memory_allocation>& memory_allocations,
+          const rocprofiler::tool::generator<rocpd::types::region>&            region_api_calls,
+          const rocprofiler::tool::generator<rocpd::types::counter>&           counters_calls,
+          const rocprofiler::tool::generator<rocpd::types::scratch_memory>&    scratch_memory_calls)
 {
+    rocpd::output::write_agent_info_csv(csv_manager, agents);
     rocpd::output::write_kernel_csv(csv_manager, kernel_dispatch);
     rocpd::output::write_memory_copy_csv(csv_manager, memory_copies);
     rocpd::output::write_memory_allocation_csv(csv_manager, memory_allocations);
-    rocpd::output::write_hip_api_csv(csv_manager, hip_api_calls);
-    rocpd::output::write_hsa_api_csv(csv_manager, hsa_api_calls);
-    rocpd::output::write_marker_api_csv(csv_manager, marker_api_calls);
-
-    rocpd::output::write_counters_csv(csv_manager, counters_calls);
+    rocpd::output::write_region_api_csv(csv_manager, region_api_calls);
     rocpd::output::write_scratch_memory_csv(csv_manager, scratch_memory_calls);
-    rocpd::output::write_rccl_api_csv(csv_manager, rccl_calls);
-
-    rocpd::output::write_rocdecode_api_csv(csv_manager, rocdecode_calls);
-    rocpd::output::write_rocjpeg_api_csv(csv_manager, rocjpeg_calls);
+    rocpd::output::write_counters_csv(csv_manager, counters_calls);
 }
 }  // namespace output
 }  // namespace rocpd
