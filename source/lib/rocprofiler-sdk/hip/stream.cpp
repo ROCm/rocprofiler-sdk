@@ -111,7 +111,12 @@ get_stream_id(hipStream_t stream)
     return get_stream_map()->rlock(
         [](const stream_map_t& _data, hipStream_t _stream) {
             ROCP_ERROR_IF(_data.count(_stream) == 0)
-                << "failed to retrieve stream ID in " << __FILE__;
+                << fmt::format("failed to retrieve stream ID for hipStream_t ({}) in {}",
+                               sdk::utility::as_hex(static_cast<void*>(_stream)),
+                               __FILE__);
+            // Stream may not be tracked during attachment. You should use queue grouping with
+            // attachment
+            if(_data.count(_stream) == 0) return add_stream(_stream);
             return _data.at(_stream);
         },
         stream);
