@@ -20,7 +20,5 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-#
-
 add_subdirectory(rocprofiler-avail)
 add_subdirectory(rocprofiler-sdk-launch-compiler)
