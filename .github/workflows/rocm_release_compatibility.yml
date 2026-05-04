@@ -52,7 +52,7 @@ jobs:
         apt-get update
         apt-get install -y git
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install requirements
       if: ${{ matrix.rocm-release == '6.2' }}

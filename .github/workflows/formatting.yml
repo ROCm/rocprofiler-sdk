@@ -22,7 +22,7 @@ jobs:
       ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Extract branch name
       shell: bash
@@ -56,7 +56,7 @@ jobs:
       ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install dependencies
       run: |
@@ -94,7 +94,7 @@ jobs:
       ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Extract branch name
       shell: bash
@@ -128,7 +128,7 @@ jobs:
     runs-on: AMD-ROCm-Internal-dev1
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Find missing new line
       shell: bash
