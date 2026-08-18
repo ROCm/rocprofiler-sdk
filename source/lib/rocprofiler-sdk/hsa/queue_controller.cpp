@@ -27,6 +27,7 @@
 #include "lib/rocprofiler-sdk/hsa/agent_cache.hpp"
 #include "lib/rocprofiler-sdk/registration.hpp"
 
+#include <shared_mutex>
 #include <rocprofiler-sdk/fwd.h>
 #include <memory>
 
@@ -179,7 +180,11 @@ QueueController::destroy_queue(hsa_queue_t* id)
 
     queue->sync();
     if(queue->block_signal.handle != 0) get_core_table().hsa_signal_destroy_fn(queue->block_signal);
-    _queues.wlock([&](auto& map) { map.erase(id); });
+    {
+        // Exclusive against any in-flight WriteInterceptor; see queue_lifetime_mutex().
+        auto _lifetime = std::unique_lock{queue_lifetime_mutex()};
+        _queues.wlock([&](auto& map) { map.erase(id); });
+    }
 
     ROCP_INFO << "queue destroyed";
 }

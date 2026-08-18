@@ -43,6 +43,7 @@
 #include <hsa/hsa_ven_amd_loader.h>
 
 #include <atomic>
+#include <shared_mutex>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -65,6 +66,13 @@ enum class queue_state
 };
 
 // Interceptor for a single specific queue
+// Guards Queue lifetime against in-flight WriteInterceptor calls. Held shared for the
+// duration of an interceptor call, and exclusively while a Queue is destroyed, so a Queue
+// cannot be freed while the interceptor is still using it. Queue destruction is rare, so a
+// single mutex for all queues is sufficient and avoids any per-queue lifetime plumbing.
+std::shared_mutex&
+queue_lifetime_mutex();
+
 class Queue
 {
 public:

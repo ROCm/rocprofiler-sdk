@@ -42,6 +42,7 @@
 #include <hsa/hsa.h>
 #include <hsa/hsa_ext_amd.h>
 
+#include <shared_mutex>
 #include <atomic>
 #include <memory>
 
@@ -208,6 +209,17 @@ bit_extract(Integral x, int first, int last)
  * pointer to the packet. This packet is written into the queue by this
  * interceptor by invoking the writer function.
  */
+}  // namespace
+
+std::shared_mutex&
+queue_lifetime_mutex()
+{
+    static auto _v = std::shared_mutex{};
+    return _v;
+}
+
+namespace
+{
 void
 WriteInterceptor(const void* packets,
                  uint64_t    pkt_count,
@@ -239,7 +251,12 @@ WriteInterceptor(const void* packets,
 
     ROCP_FATAL_IF(data == nullptr) << "WriteInterceptor was not passed a pointer to the queue";
 
-    auto& queue = *static_cast<Queue*>(data);
+    // Hold the lifetime lock for this whole call. QueueController::destroy_queue() takes it
+    // exclusively around the erase that runs ~Queue(), so the object cannot be freed while
+    // we are using it. Every dispatch is still fully instrumented: nothing is turned away,
+    // and the destructor simply waits for calls already in progress.
+    auto  _queue_lifetime = std::shared_lock{queue_lifetime_mutex()};
+    auto& queue           = *static_cast<Queue*>(data);
 
     // We have no packets or no one who needs to be notified, do nothing.
     if(pkt_count == 0 ||
